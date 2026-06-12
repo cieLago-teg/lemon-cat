@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-handwriting: "Ma Shan Zheng", "Caveat", "Long Cang", cursive;
+    --font-handwriting-en: "Caveat", "Long Cang", cursive;
+    --font-rounded: "M PLUS Rounded 1c", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  }
+
+  body {
+    min-height: 100vh;
+    font-family: var(--font-rounded);
+    color: #3d2914;
+  }
+
+  .font-rounded {
+    font-family: var(--font-rounded);
+  }
+  .font-handwriting {
+    font-family: var(--font-handwriting);
+    letter-spacing: 0.02em;
+  }
+  .font-handwriting-en {
+    font-family: var(--font-handwriting-en);
+  }
+}
+
+@layer utilities {
+  /* 整页固定背景图：暖木板 + 木架 + 麻绳 + 便签 */
+  .bg-wallpaper {
+    background-image: url("/backgrounds/archive-bg.png");
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+  }
+  /* 通用：固定 cover 背景图（可换 src） */
+  .bg-wallpaper-cover {
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+  }
+  /* 各页面专用背景（基于真实业务图片） */
+  .bg-wallpaper-archive   { background-image: url("/backgrounds/archive-bg.png"); }
+  .bg-wallpaper-home      { background-image: url("/backgrounds/home-bg.png"); }
+  .bg-wallpaper-upload    { background-image: url("/backgrounds/upload-bg.png"); }
+  .bg-wallpaper-generate  { background-image: url("/backgrounds/generate-bg.png"); }
+  .bg-wallpaper-companion { background-image: url("/backgrounds/companion-bg.png"); }
+  /* 半透明白底（叠在背景图上） */
+  .bg-paper-glass {
+    background: rgba(255, 251, 240, 0.78);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .bg-paper-glass-strong {
+    background: rgba(255, 251, 240, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  /* 奶油绘本风背景：暖白 + 淡米色 + 极淡噪点 */
+  .bg-storybook {
+    background:
+      radial-gradient(ellipse 60% 40% at 8% 0%, rgba(254, 215, 170, 0.35) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 35% at 100% 100%, rgba(252, 165, 165, 0.22) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 30% at 90% 0%, rgba(187, 247, 208, 0.25) 0%, transparent 60%),
+      radial-gradient(ellipse 45% 35% at 0% 90%, rgba(253, 230, 138, 0.35) 0%, transparent 60%),
+      linear-gradient(170deg, #fff8ee 0%, #fef3d8 100%);
+  }
+  /* 极淡噪点（水彩纸纹理） */
+  .bg-paper-noise {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.62  0 0 0 0 0.42  0 0 0 0 0.16  0 0 0 0.10 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    background-size: 200px 200px;
+    mix-blend-mode: multiply;
+  }
+  /* 软手绘描边：模拟水彩边缘 */
+  .paint-border {
+    box-shadow:
+      0 0 0 1.5px rgba(196, 130, 89, 0.15),
+      0 0 0 3px rgba(196, 130, 89, 0.07),
+      0 8px 28px -10px rgba(196, 130, 89, 0.18);
+  }
+  .paint-border-soft {
+    box-shadow:
+      0 0 0 1px rgba(196, 130, 89, 0.18),
+      0 4px 16px -8px rgba(196, 130, 89, 0.12);
+  }
+  /* 水彩画布：径向晕染 */
+  .bg-canvas-watercolor {
+    background:
+      radial-gradient(ellipse 50% 60% at 50% 40%, rgba(255, 251, 235, 0.95) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 70% at 50% 100%, rgba(253, 230, 138, 0.4) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 20% 80%, rgba(254, 215, 170, 0.3) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 80% 20%, rgba(252, 165, 165, 0.18) 0%, transparent 60%),
+      linear-gradient(170deg, #fef9e7 0%, #fef3c7 100%);
+  }
+  .bg-canvas-pink {
+    background:
+      radial-gradient(ellipse 55% 65% at 50% 50%, rgba(255, 245, 238, 0.95) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 60% at 50% 100%, rgba(252, 165, 165, 0.25) 0%, transparent 60%),
+      linear-gradient(170deg, #fff7ed 0%, #ffe4d6 100%);
+  }
+  .bg-canvas-green {
+    background:
+      radial-gradient(ellipse 55% 65% at 50% 50%, rgba(247, 254, 231, 0.95) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 60% at 50% 100%, rgba(187, 247, 208, 0.32) 0%, transparent 60%),
+      linear-gradient(170deg, #fefce8 0%, #d9f99d 100%);
+  }
+  .bg-canvas-sky {
+    background:
+      radial-gradient(ellipse 55% 65% at 50% 50%, rgba(240, 249, 255, 0.95) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 60% at 50% 100%, rgba(186, 230, 253, 0.32) 0%, transparent 60%),
+      linear-gradient(170deg, #f0f9ff 0%, #e0f2fe 100%);
+  }
+  /* 顶部三宫格统计胶囊的大号艺术字样式 */
+  .num-art {
+    font-family: var(--font-rounded);
+    font-weight: 800;
+    font-feature-settings: "tnum";
+    letter-spacing: -0.02em;
+  }
+}

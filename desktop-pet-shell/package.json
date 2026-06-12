@@ -1,0 +1,12 @@
+{
+  "name": "desktop-pet-shell",
+  "private": true,
+  "version": "0.0.1",
+  "main": "main.js",
+  "scripts": {
+    "start": "node ./node_modules/electron/cli.js ."
+  },
+  "devDependencies": {
+    "electron": "^31.0.2"
+  }
+}

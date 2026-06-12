@@ -1,0 +1,47 @@
+[
+  {
+    "mode": "breathing",
+    "outAbs": "C:\\Users\\cuido\\AppData\\Local\\Temp\\apng-compare-breathing-G71Lyq\\breathing.apng.png",
+    "genMs": 565,
+    "writeMs": 706,
+    "packMs": 7219,
+    "totalMs": 8490,
+    "bytes": 7037806,
+    "hasPngSignature": true,
+    "hasAcTL": true,
+    "isApng": true,
+    "infiniteLoop": true,
+    "frameCount": 24,
+    "translucentRatio": 0
+  },
+  {
+    "mode": "region",
+    "outAbs": "C:\\Users\\cuido\\AppData\\Local\\Temp\\apng-compare-region-qO8IO5\\region.apng.png",
+    "genMs": 517,
+    "writeMs": 860,
+    "packMs": 6675,
+    "totalMs": 8052,
+    "bytes": 5086194,
+    "hasPngSignature": true,
+    "hasAcTL": true,
+    "isApng": true,
+    "infiniteLoop": true,
+    "frameCount": 24,
+    "translucentRatio": 0
+  },
+  {
+    "mode": "keypoint",
+    "outAbs": "C:\\Users\\cuido\\AppData\\Local\\Temp\\apng-compare-keypoint-4c5vgS\\keypoint.apng.png",
+    "genMs": 76,
+    "writeMs": 849,
+    "packMs": 461,
+    "totalMs": 1386,
+    "bytes": 439820,
+    "hasPngSignature": true,
+    "hasAcTL": true,
+    "isApng": true,
+    "infiniteLoop": true,
+    "frameCount": 24,
+    "translucentRatio": 0.001118
+  }
+]

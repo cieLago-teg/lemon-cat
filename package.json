@@ -1,0 +1,49 @@
+{
+  "name": "pet-clone-demo",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "clean": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true})}catch(e){}\"",
+    "dev:reset": "npm run clean && next dev",
+    "dev:trae": "node scripts/trae-dev.mjs next",
+    "dev:trae:all": "node scripts/trae-dev.mjs all",
+    "dev:pet-shell": "node scripts/trae-dev.mjs shell",
+    "pet:pick": "node scripts/pet-pick.mjs",
+    "pet:run": "npm run pet:pick && npm run dev:pet-shell",
+    "pet:kill": "node scripts/pet-kill.mjs",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "prepare": "husky install"
+  },
+  "lint-staged": {
+    "**/*.{js,jsx,ts,tsx}": [
+      "eslint --fix"
+    ]
+  },
+  "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "jimp": "^1.6.1",
+    "next": "^15.3.0",
+    "onnxruntime-node": "^1.14.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "undici": "^8.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.12.0",
+    "@types/react": "^19.0.12",
+    "@types/react-dom": "^19.0.5",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.22.0",
+    "eslint-config-next": "^15.3.0",
+    "husky": "^8.0.0",
+    "lint-staged": "^16.4.0",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.2"
+  }
+}
