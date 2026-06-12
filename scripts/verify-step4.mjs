@@ -17,7 +17,7 @@ async function patch(body) {
 async function get() {
   // 通过 PATCH GET 模式？先读 archives.json 看数据
   const fs = await import("fs/promises");
-  const data = JSON.parse(await fs.readFile("d:/TRAE/柠檬树苗/data/archives.json", "utf8"));
+  const data = JSON.parse(await fs.readFile("d:/TRAE/柠檬猫/data/archives.json", "utf8"));
   return data.find((a) => a.id === ID);
 }
 
