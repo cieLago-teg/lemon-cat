@@ -61,10 +61,10 @@ const proxiedImage = (url: string) => `/api/image-proxy?url=${encodeURIComponent
 
 // 上传建议（折叠起来）
 const UPLOAD_TIPS = [
-  { emoji: "🌅", text: "自然光，照片不要太暗" },
-  { emoji: "🐾", text: "主体清晰，轮廓完整" },
-  { emoji: "🎯", text: "正脸或 3/4 侧面最佳" },
-  { emoji: "🌿", text: "背景简单，避免杂物和多人" }
+  { emoji: "🌅", text: "自然光线下拍摄，避免闪光灯惊吓宠物" },
+  { emoji: "🐾", text: "让宠物保持舒适放松的状态，清晰展示五官轮廓" },
+  { emoji: "🎯", text: "正脸或微侧脸最佳，能清晰看到眼睛和耳朵特征" },
+  { emoji: "🌿", text: "背景简洁，突出宠物主体，避免杂物干扰" }
 ];
 
 // 失败温和分类
@@ -122,6 +122,8 @@ export default function HomePage() {
   const [deployed, setDeployed] = useState<"none" | "video">("none");
   const [deploying, setDeploying] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [petStory, setPetStory] = useState("");
   const [showTips, setShowTips] = useState(false);
   const [showFailPanel, setShowFailPanel] = useState(false);
   const [saveHint, setSaveHint] = useState("");
@@ -135,6 +137,22 @@ export default function HomePage() {
 
   // 2026-06-12: 召唤到桌面只走视频，没有 videoUrl 就触发动画生成，全程显示真实进度。
   const { progress: deployProgress, error: deployError, hint: deployHint, deploy, usedCachedVideo } = useDeployPet();
+
+  const isAnimating = animState.stage !== "idle" && animState.stage !== "done" && animState.videoUrl === null;
+  const animateOnlyRef = useRef(false);
+  const handleDeployRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    if (animateOnlyRef.current && animState.stage === "done" && animState.videoUrl && !deploying) {
+      animateOnlyRef.current = false;
+      handleDeployRef.current();
+    }
+  }, [animState.stage, animState.videoUrl, deploying]);
+
+  const handleAnimateAndDeploy = () => {
+    animateOnlyRef.current = true;
+    void handleAnimate();
+  };
 
   const currentStep: StepIndex = stageToStep[stage];
   const phaseStage: Exclude<Stage, "UPLOAD" | "RESULTS"> | null =
@@ -197,15 +215,21 @@ export default function HomePage() {
 
   const removeTag = (index: number) => setAiTags(aiTags.filter((_, i) => i !== index));
 
-  const confirmProfileAndGenerate = () => {
-    if (!petName.trim()) {
-      setError("请先给它起个名字哦！");
-      return;
-    }
+  const startGenerationFlow = () => {
+    setShowPreview(false);
     stageStartedAtRef.current = Date.now();
     setStage("GENERATE_MORPH");
     setError("");
     void startGeneration();
+  };
+
+  const handleShowPreview = () => {
+    if (!petName.trim()) {
+      setError("请先给它起个名字哦！");
+      return;
+    }
+    setError("");
+    setShowPreview(true);
   };
 
   const startGeneration = async () => {
@@ -219,6 +243,7 @@ export default function HomePage() {
           petVibe: personality,
           aiTags,
           customFeatures,
+          petStory,
           bgMode: "white"
         })
       });
@@ -253,6 +278,8 @@ export default function HomePage() {
     setSelectedName("");
     setError("");
     setShowProfile(false);
+    setShowPreview(false);
+    setPetStory("");
     setShowFailPanel(false);
     setSaveHint("");
     setAnimState({ stage: "idle", videoUrl: null, taskId: null, percent: 0, message: "" });
@@ -290,6 +317,8 @@ export default function HomePage() {
     }
     setDeploying(false);
   };
+
+  handleDeployRef.current = handleDeploy;
 
   const handleAnimate = async () => {
     if (selectedResultIdx === null) return;
@@ -345,19 +374,6 @@ export default function HomePage() {
       setAnimState({ stage: "idle", videoUrl: null, taskId: null, percent: 0, message: "" });
       setError(e instanceof Error ? e.message : "动画提交失败");
     }
-  };
-
-  const handleDeployVideo = async () => {
-    if (!animState.videoUrl) return;
-    setDeploying(true);
-    setError("");
-    setDeployed("none");
-    const deployResult = await deploy({
-      imageUrl: results[selectedResultIdx ?? 0]?.imageUrl || "",
-      videoUrl: animState.videoUrl
-    });
-    if (deployResult.ok) setDeployed("video");
-    setDeploying(false);
   };
 
   const handleSave = async () => {
@@ -444,7 +460,7 @@ export default function HomePage() {
           onRetry={() => {
             setError("");
             setShowFailPanel(false);
-            confirmProfileAndGenerate();
+            startGenerationFlow();
           }}
           onBack={() => {
             setError("");
@@ -452,8 +468,19 @@ export default function HomePage() {
             resetAll();
           }}
         />
+      ) : stage === "UPLOAD" && showProfile && showPreview ? (
+        <ProfilePreview
+          previewUrl={previewImage}
+          petName={petName}
+          personality={personality}
+          customFeatures={customFeatures}
+          petStory={petStory}
+          profile={profile}
+          aiTags={aiTags}
+          onBack={() => setShowPreview(false)}
+          onConfirm={startGenerationFlow}
+        />
       ) : stage === "UPLOAD" && showProfile ? (
-        // Step 2：八字段编辑（识别完成后）
         <ProfileEditor
           previewUrl={previewImage}
           petName={petName}
@@ -462,10 +489,13 @@ export default function HomePage() {
           setPersonality={setPersonality}
           customFeatures={customFeatures}
           setCustomFeatures={setCustomFeatures}
+          petStory={petStory}
+          setPetStory={setPetStory}
+          profile={profile}
           aiTags={aiTags}
           removeTag={removeTag}
           onBack={resetAll}
-          onContinue={confirmProfileAndGenerate}
+          onPreview={handleShowPreview}
         />
       ) : stage === "UPLOAD" ? (
         // 初始首屏：左侧上传 / 右侧预览
@@ -484,15 +514,13 @@ export default function HomePage() {
           selectedResultIdx={selectedResultIdx}
           setSelectedResultIdx={setSelectedResultIdx}
           petName={petName}
-          handleDeploy={handleDeploy}
-          deploying={deploying}
+          handleDeploy={handleAnimateAndDeploy}
+          deploying={deploying || isAnimating}
           deployed={deployed}
           handleSave={handleSave}
           saveHint={saveHint}
           proxiedImage={proxiedImage}
           animState={animState}
-          handleAnimate={handleAnimate}
-          handleDeployVideo={handleDeployVideo}
           deployProgress={deployProgress}
           usedCachedVideo={usedCachedVideo}
         />
@@ -504,6 +532,10 @@ export default function HomePage() {
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(2px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes celebratePulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.04); }
         }
       `}</style>
     </main>
@@ -616,7 +648,7 @@ function UploadHero({
             <span className={"inline-block transition-transform " + (showTips ? "rotate-90" : "")} aria-hidden>
               ›
             </span>
-            如何选择一张好照片？
+            如何选择一张好的宠物照片？
           </button>
           {showTips && (
             <ul className="mt-3 space-y-1.5 text-xs text-[#5c2e10]/80">
@@ -781,14 +813,20 @@ function ProfileEditor(props: {
   setPersonality: (v: string) => void;
   customFeatures: string;
   setCustomFeatures: (v: string) => void;
+  petStory: string;
+  setPetStory: (v: string) => void;
+  profile: ProfileFields;
   aiTags: string[];
   removeTag: (i: number) => void;
   onBack: () => void;
-  onContinue: () => void;
+  onPreview: () => void;
 }) {
+  const filled = [props.petName.trim(), props.personality.trim(), props.customFeatures.trim()].filter(Boolean).length;
+  const total = 3;
+  const pct = Math.round((filled / total) * 100);
+
   return (
     <div className="mt-6 grid grid-cols-1 gap-12 lg:grid-cols-[1fr_1.1fr] lg:items-start">
-      {/* 左：原始照片 */}
       <div>
         <p className="text-sm text-[#5c2e10]/80">第 2 步 · 完善档案</p>
         <h2 className="mt-2 text-3xl font-medium text-[#5c2e10]">它的样子，我们都记下了</h2>
@@ -798,33 +836,47 @@ function ProfileEditor(props: {
             <img src={props.previewUrl} alt="原始照片" className="h-full w-full object-cover" />
           </div>
         )}
+
+        <div className="mt-4">
+          <div className="flex items-center justify-between text-[11px] text-[#5c2e10]/70">
+            <span>必填项 {filled}/{total}</span>
+            <span className="font-mono">{pct}%</span>
+          </div>
+          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-amber-200/60">
+            <div
+              className="h-full bg-amber-700 transition-all duration-500 ease-out"
+              style={{ width: `${Math.max(4, pct)}%` }}
+            />
+          </div>
+        </div>
       </div>
 
-      {/* 右：磨砂卡片（名字 + 用户补充 + 标签 + 按钮） */}
       <div className="rounded-[28px] bg-white/55 px-8 py-9 backdrop-blur-xl ring-1 ring-white/60 shadow-lg shadow-amber-900/5">
-        <label className="block text-xs text-[#5c2e10]/80">名字 <span className="text-rose-600">*</span></label>
-        <input
-          type="text"
-          value={props.petName}
-          onChange={(e) => props.setPetName(e.target.value)}
-          placeholder="例如：尖叫、咪咪、Rex..."
-          className="mt-2 w-full border-0 border-b border-amber-200 bg-transparent py-2 text-2xl font-medium text-[#5c2e10] placeholder:text-[#5c2e10]/35 focus:border-amber-600 focus:outline-none"
-        />
-
-        <div className="mt-10 space-y-6">
+        <div className="space-y-7">
           <div>
-            <label className="text-xs text-[#5c2e10]/80">性格</label>
+            <label className="text-xs text-[#5c2e10]/80">它叫什么名字呀？<span className="text-rose-600">*</span></label>
+            <input
+              type="text"
+              value={props.petName}
+              onChange={(e) => props.setPetName(e.target.value)}
+              placeholder="例如：尖叫、咪咪、Rex..."
+              className="mt-2 w-full border-0 border-b border-amber-200 bg-transparent py-2 text-2xl font-medium text-[#5c2e10] placeholder:text-[#5c2e10]/35 focus:border-amber-600 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-[#5c2e10]/80">它是什么样的性格？<span className="text-rose-600">*</span></label>
             <input
               type="text"
               value={props.personality}
               onChange={(e) => props.setPersonality(e.target.value)}
-              placeholder="例如：机警、沉稳、温和"
+              placeholder="例如：机警、沉稳、温和、黏人"
               className="mt-2 w-full border-0 border-b border-amber-200 bg-transparent py-2 text-base text-[#5c2e10] placeholder:text-[#5c2e10]/35 focus:border-amber-600 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="text-xs text-[#5c2e10]/80">补充特征</label>
+            <label className="text-xs text-[#5c2e10]/80">有什么特别的外貌特征？<span className="text-rose-600">*</span></label>
             <input
               type="text"
               value={props.customFeatures}
@@ -835,9 +887,21 @@ function ProfileEditor(props: {
           </div>
         </div>
 
+        <div className="mt-8 rounded-2xl bg-[#F9F3E6]/70 p-5">
+          <p className="text-xs font-medium text-[#5c2e10]/90">📝 用户补充（选填）</p>
+          <label className="mt-3 block text-xs text-[#5c2e10]/80">和它的故事</label>
+          <textarea
+            value={props.petStory}
+            onChange={(e) => props.setPetStory(e.target.value)}
+            placeholder="讲讲它的来历、习惯、你们之间的小故事..."
+            rows={3}
+            className="mt-2 w-full resize-none rounded-xl border border-amber-200/60 bg-white/50 px-4 py-3 text-sm text-[#5c2e10] placeholder:text-[#5c2e10]/35 focus:border-amber-600 focus:outline-none"
+          />
+        </div>
+
         {props.aiTags.length > 0 && (
-          <div className="mt-8 border-t border-amber-200/50 pt-6">
-            <p className="mb-3 text-xs text-[#5c2e10]/80">AI 识别标签（点击移除）</p>
+          <div className="mt-6 rounded-2xl bg-white/30 p-5">
+            <p className="mb-3 text-xs text-[#5c2e10]/80">AI 识别到的特征标签（点击移除）</p>
             <div className="flex flex-wrap gap-1.5">
               {props.aiTags.map((tag, i) => (
                 <span
@@ -855,10 +919,11 @@ function ProfileEditor(props: {
         <div className="mt-8 flex flex-wrap items-center gap-3">
           <button
             type="button"
-            onClick={props.onContinue}
-            className="rounded-full bg-amber-900 px-7 py-3 text-sm font-medium text-amber-50 shadow-lg shadow-amber-900/10 hover:bg-amber-800"
+            onClick={props.onPreview}
+            disabled={filled < total}
+            className="rounded-full bg-amber-900 px-7 py-3 text-sm font-medium text-amber-50 shadow-lg shadow-amber-900/10 hover:bg-amber-800 disabled:opacity-50"
           >
-            让它诞生 ✨
+            预览档案
           </button>
           <button
             type="button"
@@ -866,6 +931,115 @@ function ProfileEditor(props: {
             className="text-sm text-[#5c2e10]/80 hover:text-[#5c2e10]"
           >
             重新上传
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// 预览确认页
+// ============================================================================
+function ProfilePreview({
+  previewUrl,
+  petName,
+  personality,
+  customFeatures,
+  petStory,
+  profile,
+  aiTags,
+  onBack,
+  onConfirm
+}: {
+  previewUrl: string | null;
+  petName: string;
+  personality: string;
+  customFeatures: string;
+  petStory: string;
+  profile: ProfileFields;
+  aiTags: string[];
+  onBack: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="mt-6 grid grid-cols-1 gap-12 lg:grid-cols-[1fr_1.1fr] lg:items-start">
+      <div>
+        <p className="text-sm text-[#5c2e10]/80">第 2 步 · 确认档案</p>
+        <h2 className="mt-2 text-3xl font-medium text-[#5c2e10]">看看 {petName} 的档案对不对</h2>
+
+        {previewUrl && (
+          <div className="mt-6 overflow-hidden rounded-3xl bg-amber-100/40 shadow-lg shadow-amber-900/5" style={{ aspectRatio: "1 / 1" }}>
+            <img src={previewUrl} alt="原始照片" className="h-full w-full object-cover" />
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-[28px] bg-white/55 px-8 py-9 backdrop-blur-xl ring-1 ring-white/60 shadow-lg shadow-amber-900/5">
+        <div className="space-y-5">
+          <div className="rounded-2xl bg-amber-50/50 px-5 py-4">
+            <p className="text-xs text-[#5c2e10]/60">名字</p>
+            <p className="mt-1 text-lg font-medium text-[#5c2e10]">{petName}</p>
+          </div>
+
+          <div className="rounded-2xl bg-amber-50/50 px-5 py-4">
+            <p className="text-xs text-[#5c2e10]/60">性格</p>
+            <p className="mt-1 text-base text-[#5c2e10]">{personality || "未填写"}</p>
+          </div>
+
+          <div className="rounded-2xl bg-amber-50/50 px-5 py-4">
+            <p className="text-xs text-[#5c2e10]/60">特别特征</p>
+            <p className="mt-1 text-base text-[#5c2e10]">{customFeatures || "未填写"}</p>
+          </div>
+
+          {petStory && (
+            <div className="rounded-2xl bg-[#F9F3E6]/70 px-5 py-4">
+              <p className="text-xs text-[#5c2e10]/60">和它的故事</p>
+              <p className="mt-1 text-sm leading-relaxed text-[#5c2e10]">{petStory}</p>
+            </div>
+          )}
+
+          {aiTags.length > 0 && (
+            <div className="rounded-2xl bg-white/30 px-5 py-4">
+              <p className="text-xs text-[#5c2e10]/60">AI 识别标签</p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {aiTags.map((tag, i) => (
+                  <span key={i} className="rounded-full bg-amber-100/60 px-3 py-1 text-xs text-[#5c2e10]">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(profile.species || profile.furColor || profile.eyeColor || profile.earShape || profile.bodyType) && (
+            <div className="rounded-2xl bg-white/30 px-5 py-4">
+              <p className="text-xs text-[#5c2e10]/60">AI 识别外貌</p>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs text-[#5c2e10]">
+                {profile.species && <span className="rounded-full bg-amber-100/60 px-2.5 py-1">{profile.species}</span>}
+                {profile.furColor && <span className="rounded-full bg-amber-100/60 px-2.5 py-1">{profile.furColor}</span>}
+                {profile.eyeColor && <span className="rounded-full bg-amber-100/60 px-2.5 py-1">{profile.eyeColor}</span>}
+                {profile.earShape && <span className="rounded-full bg-amber-100/60 px-2.5 py-1">{profile.earShape}</span>}
+                {profile.bodyType && <span className="rounded-full bg-amber-100/60 px-2.5 py-1">{profile.bodyType}</span>}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-8 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="rounded-full bg-amber-900 px-7 py-3 text-sm font-medium text-amber-50 shadow-lg shadow-amber-900/10 hover:bg-amber-800"
+          >
+            确认，让它诞生 ✨
+          </button>
+          <button
+            type="button"
+            onClick={onBack}
+            className="text-sm text-[#5c2e10]/80 hover:text-[#5c2e10]"
+          >
+            返回修改
           </button>
         </div>
       </div>
@@ -888,8 +1062,6 @@ function ResultsStage({
   saveHint,
   proxiedImage,
   animState,
-  handleAnimate,
-  handleDeployVideo,
   deployProgress,
   usedCachedVideo
 }: {
@@ -904,15 +1076,12 @@ function ResultsStage({
   saveHint: string;
   proxiedImage: (url: string) => string;
   animState: { stage: string; videoUrl: string | null; taskId: string | null; percent?: number; message?: string };
-  handleAnimate: () => void;
-  handleDeployVideo: () => void;
   deployProgress: { stage: "idle" | "animating" | "deploying" | "done" | "error"; percent: number; message: string; fraction: number };
   usedCachedVideo: boolean;
 }) {
   const isAnimating = animState.stage !== "idle" && animState.stage !== "done" && animState.videoUrl === null;
   return (
     <div className="mt-8 grid grid-cols-1 gap-12 lg:grid-cols-[1fr_1.1fr]">
-      {/* 左：宠物预览（最大元素） */}
       <div>
         <p className="text-sm text-[#5c2e10]/80">第 3 步 · 选择形象</p>
         <h2 className="mt-2 text-3xl font-medium text-[#5c2e10]">{petName}，从照片里走出来了</h2>
@@ -938,6 +1107,10 @@ function ResultsStage({
           )}
         </div>
 
+        <div className="mt-4">
+          <DeployProgressBar progress={deployProgress} usedCached={usedCachedVideo} />
+        </div>
+
         {isAnimating && (
           <div className="mt-3">
             <p className="text-xs text-[#5c2e10]/70">🪄 {animState.message || animState.stage}…</p>
@@ -954,7 +1127,6 @@ function ResultsStage({
         )}
       </div>
 
-      {/* 右：候选形态 + 主按钮 */}
       <div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {results.map((item, idx) => {
@@ -985,39 +1157,18 @@ function ResultsStage({
             disabled={selectedResultIdx === null || deploying}
             className="rounded-full bg-amber-900 px-7 py-3.5 text-sm font-medium text-amber-50 shadow-lg shadow-amber-900/10 hover:bg-amber-800 disabled:opacity-50"
           >
-            {deploying ? "正在召唤…" : "🪄 召唤到桌面（动态）"}
+            {deploying ? "正在召唤…" : "🪄 召唤到桌面"}
           </button>
-          {/* 真实进度条：召唤中 + 动画生成中都会显示 */}
-          <DeployProgressBar progress={deployProgress} usedCached={usedCachedVideo} />
-
-          {animState.videoUrl && !deploying ? (
-            <button
-              type="button"
-              onClick={handleDeployVideo}
-              disabled={deploying}
-              className="rounded-full bg-emerald-900 px-7 py-3.5 text-sm font-medium text-amber-50 shadow-lg shadow-emerald-900/10 hover:bg-emerald-800 disabled:opacity-50"
-            >
-              ✨ 立即投放刚才的动态桌宠
-            </button>
-          ) : animState.stage === "done" && animState.videoUrl ? null : (
-            <button
-              type="button"
-              onClick={handleAnimate}
-              disabled={selectedResultIdx === null || isAnimating || deploying}
-              className="rounded-full bg-white/70 px-7 py-3.5 text-sm font-medium text-[#5c2e10] ring-1 ring-amber-200 hover:bg-white disabled:opacity-50"
-            >
-              {isAnimating ? `🪄 ${animState.message || animState.stage}…` : "🎬 提前为它注入生命"}
-            </button>
-          )}
 
           <button
             type="button"
             onClick={handleSave}
             disabled={selectedResultIdx === null}
-            className="text-sm text-[#5c2e10]/80 hover:text-[#5c2e10]"
+            className="rounded-full bg-amber-900 px-7 py-3.5 text-sm font-medium text-amber-50 shadow-lg shadow-amber-900/10 hover:bg-amber-800 disabled:opacity-50"
           >
-            {saveHint || "保存到我的宠物档案 →"}
+            {saveHint || "保存到宠物档案"}
           </button>
+
           <Link href="/pets" className="text-sm text-[#5c2e10]/80 hover:text-[#5c2e10]">
             查看我的赛博档案库 →
           </Link>
