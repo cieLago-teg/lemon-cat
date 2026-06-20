@@ -16,9 +16,7 @@ const bridgeAvailable = Boolean(window.petShell);
 const petImg = document.getElementById("pet");
 const petVideo = document.getElementById("pet-video");
 const live2dCanvas = document.getElementById("live2d-canvas");
-const petRoot = document.getElementById("root");
 const hud = document.getElementById("hud");
-const btnQuit = document.getElementById("btn-quit");
 
 function showHud(text, ms) {
   if (!hud) return;
@@ -394,69 +392,33 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-btnQuit?.addEventListener("click", () => {
-  if (btnQuit) {
-    btnQuit.dataset.busy = "true";
-    btnQuit.textContent = "关闭中…";
-  }
-  // Always do a renderer-side window.close() in addition to the bridge
-  // call so the user is never stuck even if IPC is misbehaving.
+function quitPet() {
   try {
     shellBridge.quit();
   } catch {}
   try {
     window.close();
   } catch {}
-  // Last-resort fallback: if the close didn't take in 1.5s, force a reload
-  // so the user gets a known-good window state next time they open it.
-  window.setTimeout(() => {
-    if (btnQuit) {
-      btnQuit.textContent = "关闭失败，正在重载…";
-    }
-    try {
-      window.location.reload();
-    } catch {}
-  }, 1500);
-});
-
-let controlsHidden = false;
-
-function toggleControls() {
-  const controls = document.getElementById("controls");
-  if (!controls) return;
-  controlsHidden = !controlsHidden;
-  controls.classList.toggle("hidden", controlsHidden);
 }
 
 petImg?.addEventListener("contextmenu", (e) => {
   e.preventDefault();
-  handlePetInteraction(e);
+  quitPet();
 });
 petVideo?.addEventListener("contextmenu", (e) => {
   e.preventDefault();
-  handlePetInteraction(e);
+  quitPet();
 });
 live2dCanvas?.addEventListener("contextmenu", (e) => {
   e.preventDefault();
-  handlePetInteraction(e);
+  quitPet();
 });
-
-function handlePetInteraction(e) {
-  if (e.target.closest("#controls")) return;
-  if (clickThroughEnabled) {
-    clickThroughEnabled = false;
-    shellBridge.toggleClickThrough();
-    showHud("已解除穿透（现在可以点按钮了）", 2600);
-    return;
-  }
-  toggleControls();
-}
 
 window.addEventListener("pointerdown", (e) => {
   if (clickThroughEnabled) {
     clickThroughEnabled = false;
     shellBridge.toggleClickThrough();
-    showHud("已解除穿透（现在可以点按钮了）", 2600);
+    showHud("已解除穿透（现在可以正常操作了）", 2600);
   }
 });
 

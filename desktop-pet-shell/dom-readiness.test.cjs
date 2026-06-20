@@ -67,13 +67,9 @@ test("index.html makes the pet surface a native drag region", () => {
   );
 });
 
-test("index.html keeps controls clickable above the drag region", () => {
-  const cssBlock = indexHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
-  assert.ok(cssBlock, "expected a <style> block in index.html");
-  const controlsRule = cssBlock[1].match(/#controls\s*\{([\s\S]*?)\}/);
-  assert.ok(controlsRule, "expected #controls rule");
-  assert.match(controlsRule[1], /-webkit-app-region\s*:\s*no-drag/);
-  assert.match(controlsRule[1], /z-index\s*:\s*20/);
+test("index.html keeps the pet area clean with no visible controls", () => {
+  assert.doesNotMatch(indexHtml, /btn-quit/i, "no close button should clutter the pet");
+  assert.doesNotMatch(indexHtml, /id=["']controls["']/i, "no controls panel should clutter the pet");
 });
 
 test("renderer keeps only click-through recovery pointer handling and avoids manual window dragging", () => {
@@ -105,51 +101,37 @@ test("renderer keeps the toggle wired via keyboard and pet click", () => {
   assert.match(rendererSrc, /shellBridge\.toggleClickThrough/);
 });
 
-test("renderer keeps the quit button wired to the bridge", () => {
+test("renderer right-click (contextmenu) quits the pet window", () => {
   const rendererSrc = fs.readFileSync(
     path.join(__dirname, "renderer.js"),
     "utf-8"
   );
   assert.match(
     rendererSrc,
-    /btnQuit\?\.addEventListener\(\s*["']click["']/,
-    "quit button should call shellBridge.quit()"
+    /contextmenu/,
+    "renderer should listen to contextmenu events on pet media elements"
   );
+  assert.match(rendererSrc, /quitPet/);
   assert.match(rendererSrc, /shellBridge\.quit/);
 });
 
-test("renderer also force-closes the window on the close button when IPC fails", () => {
+test("renderer quit function calls window.close as fallback", () => {
   const rendererSrc = fs.readFileSync(
     path.join(__dirname, "renderer.js"),
     "utf-8"
   );
-  // The handler should still call window.close() itself so a stuck bridge
-  // never strands the user.
-  const closeHandler = rendererSrc.match(
-    /btnQuit\?\.addEventListener\(\s*["']click["'][\s\S]*?\}\s*\)\s*;/
-  );
-  assert.ok(closeHandler, "expected a click handler for btnQuit");
   assert.match(
-    closeHandler[0],
+    rendererSrc,
     /window\.close\(\)/,
-    "close button should always window.close() in addition to invoking the bridge"
+    "quitPet should always window.close() in addition to invoking the bridge"
   );
   assert.match(
     rendererSrc,
     /shellBridge\.quit/,
-    "close button should also call shellBridge.quit() for the IPC path"
+    "quitPet should also call shellBridge.quit() for the IPC path"
   );
 });
 
-test("index.html styles the control buttons with clear pressed/active states", () => {
-  const cssBlock = indexHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
-  assert.ok(cssBlock, "expected a <style> block in index.html");
-  const controlsRule = cssBlock[1].match(/#controls\s*\{([\s\S]*?)\}/);
-  assert.ok(controlsRule, "expected #controls rule");
-  // Look for an ":active" / "pressed" feedback rule on the buttons.
-  assert.match(
-    cssBlock[1],
-    /#controls\s+button[^}]*:\s*active\s*\{/,
-    "controls buttons should have an :active rule so presses are obvious"
-  );
+test("index.html uses no button elements — controls are removed", () => {
+  assert.doesNotMatch(indexHtml, /<button/i, "no button elements in the pet shell");
 });
