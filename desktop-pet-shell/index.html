@@ -15,13 +15,6 @@
         background: transparent;
         overflow: hidden;
         user-select: none;
-      }
-      #drag {
-        position: absolute;
-        left: 0;
-        top: 0;
-        right: 0;
-        height: 28px;
         -webkit-app-region: drag;
       }
       #root {
@@ -31,6 +24,8 @@
         height: 100%;
         display: grid;
         place-items: center;
+        -webkit-app-region: no-drag;
+        pointer-events: none;
       }
       #pet {
         width: 100%;
@@ -38,19 +33,22 @@
         object-fit: contain;
         image-rendering: pixelated;
         pointer-events: auto;
+        -webkit-app-region: drag;
       }
       #pet-video {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      background: transparent;
-      pointer-events: none;
-    }
-    #live2d-canvas {
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-    }
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        background: transparent;
+        pointer-events: auto;
+        -webkit-app-region: drag;
+      }
+      #live2d-canvas {
+        width: 100%;
+        height: 100%;
+        pointer-events: auto;
+        -webkit-app-region: drag;
+      }
       #hud {
         position: absolute;
         left: 10px;
@@ -73,11 +71,11 @@
       #controls {
         position: absolute;
         left: 50%;
-        bottom: 6px;
+        bottom: 1px;
         transform: translateX(-50%);
         z-index: 20;
         display: flex;
-        gap: 8px;
+        gap: 6px;
         -webkit-app-region: no-drag;
         pointer-events: auto;
         transition: opacity 200ms ease;
@@ -134,15 +132,14 @@
         outline-offset: 2px;
       }
       #btn-quit {
-        font-size: 8px;
-        padding: 3px 5px;
-        min-width: 28px;
+        font-size: 5.5px;
+        padding: 2px 4px;
+        min-width: 19px;
         letter-spacing: 0.01em;
       }
     </style>
   </head>
   <body>
-    <div id="drag"></div>
     <div id="root">
       <img id="pet" alt="pet" style="display: none;" />
       <video id="pet-video" style="display: none;" autoplay loop muted playsinline></video>

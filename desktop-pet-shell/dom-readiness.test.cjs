@@ -8,25 +8,29 @@ const indexHtml = fs.readFileSync(
   "utf-8"
 );
 
-test("index.html styles #pet-video so it does not capture pointer events", () => {
+test("index.html styles #pet-video as a drag surface with auto pointer events", () => {
   const cssBlock = indexHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
   assert.ok(cssBlock, "expected a <style> block in index.html");
 
-  // Locate the rule targeting #pet-video (if any)
   const ruleMatch = cssBlock[1].match(/#pet-video\s*\{([\s\S]*?)\}/);
   assert.ok(
     ruleMatch,
-    "expected a CSS rule targeting #pet-video so it stays out of the way of drag/click"
+    "expected a CSS rule targeting #pet-video for drag and contextmenu handling"
   );
 
   assert.match(
     ruleMatch[1],
-    /pointer-events\s*:\s*none/,
-    "expected #pet-video to declare pointer-events: none"
+    /-webkit-app-region\s*:\s*drag/,
+    "expected #pet-video to declare -webkit-app-region: drag"
+  );
+  assert.match(
+    ruleMatch[1],
+    /pointer-events\s*:\s*auto/,
+    "expected #pet-video to declare pointer-events: auto for contextmenu"
   );
 });
 
-test("index.html keeps the pet and live2d-canvas media non-interactive", () => {
+test("index.html keeps the pet and live2d-canvas media interactive for drag and contextmenu", () => {
   const cssBlock = indexHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
   assert.ok(cssBlock);
   const petVideoRule = cssBlock[1].match(/#pet-video\s*\{([\s\S]*?)\}/);
@@ -35,7 +39,9 @@ test("index.html keeps the pet and live2d-canvas media non-interactive", () => {
   assert.ok(petVideoRule, "expected #pet-video rule");
   assert.ok(petRule, "expected #pet rule");
   assert.ok(canvasRule, "expected #live2d-canvas rule");
-  assert.match(petVideoRule[1], /pointer-events\s*:\s*none/);
+  assert.match(petVideoRule[1], /-webkit-app-region\s*:\s*drag/);
+  assert.match(petRule[2], /-webkit-app-region\s*:\s*drag/);
+  assert.match(canvasRule[1], /-webkit-app-region\s*:\s*drag/);
 });
 
 test("index.html keeps the HUD element so the user can see click-through state", () => {
@@ -45,12 +51,19 @@ test("index.html keeps the HUD element so the user can see click-through state",
 test("index.html makes the pet surface a native drag region", () => {
   const cssBlock = indexHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
   assert.ok(cssBlock, "expected a <style> block in index.html");
-  const dragRule = cssBlock[1].match(/#drag\s*\{([\s\S]*?)\}/);
-  assert.ok(dragRule, "expected #drag rule");
+  const petRule = cssBlock[1].match(/#pet\s*\{([\s\S]*?)\}/);
+  assert.ok(petRule, "expected #pet rule");
   assert.match(
-    dragRule[1],
+    petRule[1],
     /-webkit-app-region\s*:\s*drag/,
-    "expected #drag to use a native drag region so dragging stays stable"
+    "expected #pet to use a native drag region so dragging stays stable"
+  );
+  const htmlBodyRule = cssBlock[1].match(/html\s*,\s*body\s*\{([\s\S]*?)\}/);
+  assert.ok(htmlBodyRule, "expected html,body rule");
+  assert.match(
+    htmlBodyRule[1],
+    /-webkit-app-region\s*:\s*drag/,
+    "expected html,body to fallback as drag region"
   );
 });
 

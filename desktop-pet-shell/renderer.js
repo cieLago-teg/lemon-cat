@@ -428,16 +428,29 @@ function toggleControls() {
   controls.classList.toggle("hidden", controlsHidden);
 }
 
-petRoot?.addEventListener("click", (e) => {
+petImg?.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
+  handlePetInteraction(e);
+});
+petVideo?.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
+  handlePetInteraction(e);
+});
+live2dCanvas?.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
+  handlePetInteraction(e);
+});
+
+function handlePetInteraction(e) {
+  if (e.target.closest("#controls")) return;
   if (clickThroughEnabled) {
     clickThroughEnabled = false;
     shellBridge.toggleClickThrough();
     showHud("已解除穿透（现在可以点按钮了）", 2600);
     return;
   }
-  if (e.target.closest("#controls")) return;
   toggleControls();
-});
+}
 
 window.addEventListener("pointerdown", (e) => {
   if (clickThroughEnabled) {
