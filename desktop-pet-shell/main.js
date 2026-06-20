@@ -60,8 +60,7 @@ function forceQuit(reason) {
 function createWindow() {
   const display = screen.getPrimaryDisplay();
   const size = Math.min(display.workAreaSize.width, display.workAreaSize.height);
-  // 2026-06-12: 桌宠窗口先缩到原来的 80%，避免在桌面上显得太顶。
-  const width = Math.max(208, Math.floor(size * 0.22 * 0.8));
+  const width = Math.max(166, Math.floor(size * 0.22 * 0.64));
   const height = width;
 
   win = new BrowserWindow({

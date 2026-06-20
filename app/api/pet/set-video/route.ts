@@ -1,7 +1,20 @@
 import fs from "node:fs";
 import path from "node:path";
-import { spawn, spawnSync } from "node:child_process";
+import crypto from "node:crypto";
+import { spawn } from "node:child_process";
 import { NextResponse } from "next/server";
+
+function hashContent(buf: Buffer) {
+  return crypto.createHash("sha256").update(buf).digest("hex");
+}
+
+function hashFile(filePath: string) {
+  try {
+    return hashContent(fs.readFileSync(filePath));
+  } catch {
+    return null;
+  }
+}
 
 function getVideoExtFrom(urlOrContentType: string) {
   const value = String(urlOrContentType || "").toLowerCase();
@@ -10,16 +23,20 @@ function getVideoExtFrom(urlOrContentType: string) {
   return ".mp4";
 }
 
-function tryKillPetShell() {
-  try {
-    spawnSync(process.execPath, [path.join(process.cwd(), "scripts", "pet-kill.mjs")], {
-      stdio: "ignore"
+async function tryKillPetShell() {
+  return new Promise<void>((resolve) => {
+    const child = spawn(process.execPath, [path.join(process.cwd(), "scripts", "pet-kill.mjs")], {
+      stdio: "ignore",
+      detached: true
     });
-  } catch {}
+    child.unref();
+    child.on("exit", () => resolve());
+    setTimeout(() => resolve(), 3500);
+  });
 }
 
-function tryLaunchPetShell() {
-  tryKillPetShell();
+async function tryLaunchPetShell() {
+  await tryKillPetShell();
   const shellDir = path.join(process.cwd(), "desktop-pet-shell");
   const electronExeWin = path.join(shellDir, "node_modules", "electron", "dist", "electron.exe");
   if (process.platform === "win32" && fs.existsSync(electronExeWin)) {
@@ -88,7 +105,16 @@ export async function POST(request: Request) {
   const shellDir = path.join(process.cwd(), "desktop-pet-shell");
   const ext = getVideoExtFrom(contentType || videoUrl);
   const fileName = `pet-video${ext}`;
-  fs.writeFileSync(path.join(shellDir, fileName), bytes);
+  const videoPath = path.join(shellDir, fileName);
+  const newHash = hashContent(bytes);
+  const existingHash = hashFile(videoPath);
+
+  if (existingHash === newHash) {
+    const launched = await tryLaunchPetShell();
+    return NextResponse.json({ ok: true, shellLaunched: launched.ok, fileName, reused: true });
+  }
+
+  fs.writeFileSync(videoPath, bytes);
   fs.writeFileSync(
     path.join(shellDir, "config.json"),
     JSON.stringify(
@@ -102,6 +128,6 @@ export async function POST(request: Request) {
     "utf-8"
   );
 
-  const launched = tryLaunchPetShell();
+  const launched = await tryLaunchPetShell();
   return NextResponse.json({ ok: true, shellLaunched: launched.ok, fileName });
 }

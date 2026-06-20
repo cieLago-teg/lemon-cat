@@ -16,19 +16,9 @@ const bridgeAvailable = Boolean(window.petShell);
 const petImg = document.getElementById("pet");
 const petVideo = document.getElementById("pet-video");
 const live2dCanvas = document.getElementById("live2d-canvas");
+const petRoot = document.getElementById("root");
 const hud = document.getElementById("hud");
-let btnPlay = document.getElementById("btn-play");
 const btnQuit = document.getElementById("btn-quit");
-
-if (!btnPlay) {
-  const controls = document.getElementById("controls");
-  if (controls) {
-    btnPlay = document.createElement("button");
-    btnPlay.id = "btn-play";
-    btnPlay.textContent = "暂停";
-    controls.appendChild(btnPlay);
-  }
-}
 
 function showHud(text, ms) {
   if (!hud) return;
@@ -46,11 +36,6 @@ petImg?.addEventListener("error", () => {
 petVideo?.addEventListener("error", () => {
   showHud("视频资源加载失败");
 });
-
-function setPlayLabel(playing) {
-  if (!btnPlay) return;
-  btnPlay.textContent = playing ? "暂停" : "播放";
-}
 
 function padNumber(value, digits) {
   const raw = String(value);
@@ -160,21 +145,17 @@ async function toggleFramesPlaying() {
     if (petVideo.paused) {
       try {
         await petVideo.play();
-        setPlayLabel(true);
         showHud("播放");
       } catch (error) {
-        setPlayLabel(false);
         showHud(`播放失败：${error instanceof Error ? error.message : "unknown"}`, 3200);
       }
     } else {
       petVideo.pause();
-      setPlayLabel(false);
       showHud("暂停");
     }
     return;
   }
   framesPlaying = !framesPlaying;
-  setPlayLabel(framesPlaying);
   if (!activeFramesConfig) return;
   if (framesPlaying) {
     startFrames(activeFramesConfig);
@@ -218,6 +199,16 @@ async function startLive2D(config) {
     currentLive2dModel = model;
     pixiApp.stage.addChild(model);
 
+    try {
+      await applyCustomTextures(model, config.baseUrl);
+    } catch (textureErr) {
+      showHud(
+        "换皮纹理加载失败（已回退到默认皮肤）：" +
+          (textureErr instanceof Error ? textureErr.message : "unknown"),
+        4200
+      );
+    }
+
     const scaleX = innerWidth / model.width;
     const scaleY = innerHeight / model.height;
     model.scale.set(Math.min(scaleX, scaleY) * 0.9);
@@ -233,6 +224,48 @@ async function startLive2D(config) {
     });
   } catch (e) {
     showHud("Live2D加载失败: " + (e instanceof Error ? e.message : "unknown"), 5200);
+  }
+}
+
+async function applyCustomTextures(model, baseUrl) {
+  if (!model?.internalModel?.textures || !Array.isArray(model.internalModel.textures)) {
+    return;
+  }
+
+  const lastSlash = Math.max(baseUrl.lastIndexOf("/"), baseUrl.lastIndexOf("\\"));
+  const modelDir = lastSlash >= 0 ? baseUrl.slice(0, lastSlash + 1) : "./";
+  const normalizedDir = modelDir.startsWith("./") || modelDir.startsWith("/") ? modelDir : `./${modelDir}`;
+
+  const textureList = model.internalModel.textures;
+  let replaced = 0;
+  for (let i = 0; i < textureList.length; i += 1) {
+    const customUrl = `${normalizedDir}pet-cat.1024/custom_${padNumber(i, 2)}.png`;
+    let exists = false;
+    try {
+      const resp = await fetch(customUrl, { method: "HEAD", cache: "no-store" });
+      exists = resp.ok;
+    } catch (_) {
+      exists = false;
+    }
+    if (!exists) continue;
+    try {
+      const newTex = await PIXI.Texture.from(customUrl);
+      const slot = textureList[i];
+      if (slot && typeof slot === "object") {
+        if ("texture" in slot) {
+          slot.texture = newTex;
+        } else if (typeof slot.destroy === "function") {
+          try { slot.destroy(); } catch (_) { /* ignore */ }
+          textureList[i] = newTex;
+        }
+        replaced += 1;
+      }
+    } catch (e) {
+      console.warn(`[live2d] custom texture ${i} failed:`, e);
+    }
+  }
+  if (replaced > 0) {
+    showHud(`已加载 ${replaced} 张换皮纹理`, 2200);
   }
 }
 
@@ -274,10 +307,7 @@ async function bootInner() {
     }
     await startLive2D(config);
     showHud("Live2D");
-    setPlayLabel(false);
-    if (btnPlay) btnPlay.style.display = "none";
   } else {
-    if (btnPlay) btnPlay.style.display = "block";
     live2dCanvas.style.display = "none";
     petImg.style.display = "none";
     if (petVideo) {
@@ -296,11 +326,9 @@ async function bootInner() {
       petImg.style.display = "block";
       startFrames(config);
       showHud("Frames");
-      setPlayLabel(framesPlaying);
     } else if (config.mode === "video") {
       stopFrames();
       activeFramesConfig = null;
-      if (btnPlay) btnPlay.style.display = "block";
       if (petVideo) {
         petVideo.style.display = "block";
         petVideo.src = config.src;
@@ -310,7 +338,6 @@ async function bootInner() {
         } catch {}
       }
       showHud("Video");
-      setPlayLabel(true);
     } else {
       stopFrames();
       activeFramesConfig = null;
@@ -367,12 +394,6 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-btnPlay?.addEventListener("click", () => {
-  if (btnPlay) btnPlay.dataset.busy = "true";
-  Promise.resolve(toggleFramesPlaying()).finally(() => {
-    if (btnPlay) delete btnPlay.dataset.busy;
-  });
-});
 btnQuit?.addEventListener("click", () => {
   if (btnQuit) {
     btnQuit.dataset.busy = "true";
@@ -396,6 +417,26 @@ btnQuit?.addEventListener("click", () => {
       window.location.reload();
     } catch {}
   }, 1500);
+});
+
+let controlsHidden = false;
+
+function toggleControls() {
+  const controls = document.getElementById("controls");
+  if (!controls) return;
+  controlsHidden = !controlsHidden;
+  controls.classList.toggle("hidden", controlsHidden);
+}
+
+petRoot?.addEventListener("click", (e) => {
+  if (clickThroughEnabled) {
+    clickThroughEnabled = false;
+    shellBridge.toggleClickThrough();
+    showHud("已解除穿透（现在可以点按钮了）", 2600);
+    return;
+  }
+  if (e.target.closest("#controls")) return;
+  toggleControls();
 });
 
 window.addEventListener("pointerdown", (e) => {

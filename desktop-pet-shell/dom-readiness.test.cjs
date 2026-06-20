@@ -45,12 +45,12 @@ test("index.html keeps the HUD element so the user can see click-through state",
 test("index.html makes the pet surface a native drag region", () => {
   const cssBlock = indexHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
   assert.ok(cssBlock, "expected a <style> block in index.html");
-  const rootRule = cssBlock[1].match(/#root\s*\{([\s\S]*?)\}/);
-  assert.ok(rootRule, "expected #root rule");
+  const dragRule = cssBlock[1].match(/#drag\s*\{([\s\S]*?)\}/);
+  assert.ok(dragRule, "expected #drag rule");
   assert.match(
-    rootRule[1],
+    dragRule[1],
     /-webkit-app-region\s*:\s*drag/,
-    "expected #root to use a native drag region so dragging stays stable"
+    "expected #drag to use a native drag region so dragging stays stable"
   );
 });
 
@@ -84,15 +84,10 @@ test("renderer keeps only click-through recovery pointer handling and avoids man
   );
 });
 
-test("renderer keeps the toggle button wired to the bridge", () => {
+test("renderer keeps the toggle wired via keyboard and pet click", () => {
   const rendererSrc = fs.readFileSync(
     path.join(__dirname, "renderer.js"),
     "utf-8"
-  );
-  assert.match(
-    rendererSrc,
-    /btnToggle\?\.addEventListener\(\s*["']click["']/,
-    "toggle button should call shellBridge.toggleClickThrough()"
   );
   assert.match(rendererSrc, /shellBridge\.toggleClickThrough/);
 });
