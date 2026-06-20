@@ -21,7 +21,8 @@ function parsePngDataUrl(input: string) {
 function tryKillPetShell() {
   try {
     spawnSync(process.execPath, [path.join(process.cwd(), "scripts", "pet-kill.mjs")], {
-      stdio: "ignore"
+      stdio: "ignore",
+      windowsHide: true
     });
   } catch {}
 }

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { NextResponse } from "next/server";
 
 function hashContent(buf: Buffer) {
@@ -23,20 +23,17 @@ function getVideoExtFrom(urlOrContentType: string) {
   return ".mp4";
 }
 
-async function tryKillPetShell() {
-  return new Promise<void>((resolve) => {
-    const child = spawn(process.execPath, [path.join(process.cwd(), "scripts", "pet-kill.mjs")], {
+function tryKillPetShell() {
+  try {
+    spawnSync(process.execPath, [path.join(process.cwd(), "scripts", "pet-kill.mjs")], {
       stdio: "ignore",
-      detached: true
+      windowsHide: true
     });
-    child.unref();
-    child.on("exit", () => resolve());
-    setTimeout(() => resolve(), 3500);
-  });
+  } catch {}
 }
 
-async function tryLaunchPetShell() {
-  await tryKillPetShell();
+function tryLaunchPetShell() {
+  tryKillPetShell();
   const shellDir = path.join(process.cwd(), "desktop-pet-shell");
   const electronExeWin = path.join(shellDir, "node_modules", "electron", "dist", "electron.exe");
   if (process.platform === "win32" && fs.existsSync(electronExeWin)) {
@@ -110,7 +107,7 @@ export async function POST(request: Request) {
   const existingHash = hashFile(videoPath);
 
   if (existingHash === newHash) {
-    const launched = await tryLaunchPetShell();
+    const launched = tryLaunchPetShell();
     return NextResponse.json({ ok: true, shellLaunched: launched.ok, fileName, reused: true });
   }
 
@@ -128,6 +125,6 @@ export async function POST(request: Request) {
     "utf-8"
   );
 
-  const launched = await tryLaunchPetShell();
+  const launched = tryLaunchPetShell();
   return NextResponse.json({ ok: true, shellLaunched: launched.ok, fileName });
 }

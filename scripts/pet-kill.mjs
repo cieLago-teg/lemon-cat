@@ -23,7 +23,8 @@ if ($roots.Count -eq 0) {
 function runPowerShell(script) {
   return spawnSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script], {
     stdio: "pipe",
-    encoding: "utf-8"
+    encoding: "utf-8",
+    windowsHide: true
   });
 }
 
@@ -50,7 +51,8 @@ try {
       for (const pid of rootPids) {
         const taskkill = spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], {
           stdio: "pipe",
-          encoding: "utf-8"
+          encoding: "utf-8",
+          windowsHide: true
         });
         if (taskkill.status === 0) {
           killed.push(pid);
