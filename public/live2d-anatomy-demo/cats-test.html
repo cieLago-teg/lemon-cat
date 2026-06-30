@@ -2,79 +2,227 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>真猫测试 · Hijiki & Tororo · pixi-live2d-display@0.4.0</title>
+  <title>🐱 真猫展示 · Hijiki & Tororo · 摸头互动版</title>
   <style>
+    * { box-sizing: border-box; }
     body {
       margin: 0;
-      background: #1a1a2e;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
       color: #eee;
       font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
-      padding: 20px;
+      padding: 16px 20px;
+      min-height: 100vh;
     }
-    h1 { color: #ffd166; margin: 0 0 8px; }
-    .info { font-size: 14px; color: #9eb6d3; margin-bottom: 16px; }
+    h1 {
+      color: #ffd166;
+      margin: 0 0 4px;
+      font-size: 20px;
+    }
+    .info { font-size: 12px; color: #9eb6d3; margin-bottom: 14px; line-height: 1.6; }
+    .info code { background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+    .info a { color: #06d6a0; text-decoration: none; }
+
     .grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      max-width: 1200px;
+      gap: 14px;
+      max-width: 1100px;
+      margin: 0 auto;
     }
     .panel {
       background: rgba(255,255,255,0.04);
-      border-radius: 12px;
+      border: 1px solid rgba(255,209,102,0.15);
+      border-radius: 14px;
       padding: 12px;
+      backdrop-filter: blur(8px);
     }
-    .panel h3 { color: #06d6a0; margin: 0 0 8px; font-size: 14px; }
+    .panel h3 {
+      margin: 0 0 8px;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .emoji-cat { font-size: 18px; }
     .canvas-wrap {
       width: 100%;
-      height: 400px;
-      background: linear-gradient(180deg, #16213e 0%, #0f3460 100%);
-      border-radius: 8px;
+      height: 380px;
+      background: linear-gradient(180deg, rgba(22,33,62,0.6) 0%, rgba(15,52,96,0.6) 100%);
+      border-radius: 10px;
       overflow: hidden;
       position: relative;
+      cursor: grab;
     }
-    .canvas-wrap canvas { width: 100% !important; height: 100% !important; }
-    .status { font-size: 12px; color: #9eb6d3; margin-top: 8px; min-height: 24px; }
-    .ok { color: #06d6a0; }
-    .err { color: #ef476f; }
+    .canvas-wrap:active { cursor: grabbing; }
+    .canvas-wrap canvas { width: 100% !important; height: 100% !important; display: block; }
+
+    .badge {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(6,214,160,0.18);
+      color: #06d6a0;
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 10px;
+      border: 1px solid rgba(6,214,160,0.3);
+      pointer-events: none;
+    }
+    .hint-overlay {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.5);
+      color: #ffd166;
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 10px;
+      pointer-events: none;
+      opacity: 0.85;
+    }
+
+    .controls {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      background: linear-gradient(135deg, #ef476f, #ff6b8b);
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      transition: all 0.2s;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
+    .btn:active { transform: translateY(0); }
+    .btn.tap { background: linear-gradient(135deg, #06d6a0, #05b386); }
+    .btn.idle { background: linear-gradient(135deg, #ffd166, #ffb74d); color: #5a3a00; }
+    .btn.flick { background: linear-gradient(135deg, #118ab2, #0a6e8e); }
+    .btn.pet  { background: linear-gradient(135deg, #c77dff, #9d4edd); }
+
+    .status {
+      font-size: 11px;
+      color: #9eb6d3;
+      margin-top: 8px;
+      min-height: 20px;
+      line-height: 1.5;
+    }
+    .ok  { color: #06d6a0; font-weight: 600; }
+    .err { color: #ef476f; font-weight: 600; }
+    .meta { color: #ffd166; }
+
+    .footer {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 11px;
+      color: #9eb6d3;
+      opacity: 0.7;
+    }
+
+    /* 雪花飘落（装饰） */
+    @keyframes float {
+      0%   { transform: translateY(-10px) rotate(0deg); opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+    }
+    .paw-print {
+      position: fixed;
+      top: -20px;
+      font-size: 18px;
+      pointer-events: none;
+      animation: float 12s linear infinite;
+      z-index: 0;
+    }
   </style>
 </head>
 <body>
-  <h1>🐱 真猫 Live2D 模型加载测试（pixi-live2d-display@0.4.0）</h1>
-  <div class="info">从 npm <code>live2d-widget-model-hijiki</code> 和 <code>live2d-widget-model-tororo</code> 下载。这是 Live2D 官方 Cubism 2 格式的真猫模型（黑猫 Hijiki + 白猫 Tororo）。</div>
+  <h1>🐱 真猫展示 · 摸头互动版</h1>
+  <div class="info">
+    🎯 用 <code>pixi-live2d-display@0.4.0</code> + Cubism 2 Core 加载 Live2D 官方真猫模型
+    (<a href="https://www.npmjs.com/package/live2d-widget-model-hijiki" target="_blank">Hijiki 黑猫</a> &
+    <a href="https://www.npmjs.com/package/live2d-widget-model-tororo" target="_blank">Tororo 白猫</a>)。
+    点击猫猫 = 触发动作 · 点击下方按钮 = 切换 idle / tap_body 动作 · License: Live2D Free Material License · 仅教学/学习/个人非商用。
+  </div>
 
   <div class="grid">
+    <!-- 黑猫 Hijiki -->
     <div class="panel">
-      <h3>🐈‍⬛ Hijiki (黑猫)</h3>
-      <div class="canvas-wrap">
+      <h3><span class="emoji-cat">🐈‍⬛</span> Hijiki (黑猫)</h3>
+      <div class="canvas-wrap" id="wrap-hijiki">
+        <span class="badge">Cubism 2 · .moc</span>
+        <span class="hint-overlay">👆 点击猫咪试试</span>
         <canvas id="cv-hijiki"></canvas>
+      </div>
+      <div class="controls">
+        <button class="btn tap"   data-cat="hijiki" data-action="tap_body">🎯 随机互动</button>
+        <button class="btn idle"  data-cat="hijiki" data-action="idle">😴 待机动作</button>
+        <button class="btn flick" data-cat="hijiki" data-action="flick_head">👋 甩头</button>
+        <button class="btn pet"   data-cat="hijiki" data-action="pet_head">🖐️ 摸头</button>
       </div>
       <div class="status" id="status-hijiki">⏳ 等待...</div>
     </div>
 
+    <!-- 白猫 Tororo -->
     <div class="panel">
-      <h3>🐱 Tororo (白猫)</h3>
-      <div class="canvas-wrap">
+      <h3><span class="emoji-cat">🐱</span> Tororo (白猫)</h3>
+      <div class="canvas-wrap" id="wrap-tororo">
+        <span class="badge">Cubism 2 · .moc</span>
+        <span class="hint-overlay">👆 点击猫咪试试</span>
         <canvas id="cv-tororo"></canvas>
+      </div>
+      <div class="controls">
+        <button class="btn tap"   data-cat="tororo" data-action="tap_body">🎯 随机互动</button>
+        <button class="btn idle"  data-cat="tororo" data-action="idle">😴 待机动作</button>
+        <button class="btn flick" data-cat="tororo" data-action="flick_head">👋 甩头</button>
+        <button class="btn pet"   data-cat="tororo" data-action="pet_head">🖐️ 摸头</button>
       </div>
       <div class="status" id="status-tororo">⏳ 等待...</div>
     </div>
   </div>
 
+  <div class="footer">🐾 双猫同框 · 鼠标拖动移动 / 滚轮缩放 · 这是 iframe 独立页面，与主 demo 完全隔离 ✨</div>
+
   <!-- 同时加载 Cubism 2 和 4 Core -->
   <script src="./lib/live2d.min.js"></script>
   <script src="./lib/live2dcubismcore.min.js"></script>
-  <!-- pixi-live2d-display 0.4.0：同时支持 Cubism 2 和 Cubism 4 -->
   <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.10/dist/browser/pixi.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/index.min.js"></script>
 
   <script>
-    async function loadCat(canvasId, statusId, modelUrl, name) {
+    // ========= 装饰：飘落的猫爪 =========
+    function spawnPaws() {
+      const pawEmojis = ['🐾', '🐱', '🐈', '🐈‍⬛', '😺', '😻'];
+      for (let i = 0; i < 5; i++) {
+        const paw = document.createElement('div');
+        paw.className = 'paw-print';
+        paw.textContent = pawEmojis[Math.floor(Math.random() * pawEmojis.length)];
+        paw.style.left = Math.random() * 100 + 'vw';
+        paw.style.animationDuration = (10 + Math.random() * 8) + 's';
+        paw.style.animationDelay = Math.random() * 8 + 's';
+        paw.style.opacity = 0.3 + Math.random() * 0.3;
+        document.body.appendChild(paw);
+      }
+    }
+    spawnPaws();
+
+    // ========= 猫猫加载 + 交互 =========
+    const catModels = {};
+
+    async function loadCat(canvasId, statusId, wrapId, modelUrl, name) {
       const status = document.getElementById(statusId);
       const canvas = document.getElementById(canvasId);
+      const wrap   = document.getElementById(wrapId);
 
       try {
-        status.innerHTML = `⏳ 创建 PIXI 应用...`;
+        status.innerHTML = `⏳ 创建 PIXI 应用…`;
         const app = new PIXI.Application({
           view: canvas,
           width: canvas.clientWidth,
@@ -84,7 +232,7 @@
           autoDensity: true,
         });
 
-        status.innerHTML += `<br>⏳ 加载 ${name} ...`;
+        status.innerHTML += `<br>⏳ 加载 ${name} …`;
         const model = await PIXI.live2d.Live2DModel.from(modelUrl, {
           autoInteract: true,
           autoFocus: true,
@@ -93,34 +241,116 @@
         // 自适应缩放
         const sw = canvas.clientWidth;
         const sh = canvas.clientHeight;
-        const scale = Math.min(sw / model.width, sh / model.height) * 0.9;
+        const scale = Math.min(sw / model.width, sh / model.height) * 0.92;
         model.scale.set(scale);
         model.x = (sw - model.width * scale) / 2;
         model.y = (sh - model.height * scale) / 2;
         app.stage.addChild(model);
 
-        // 探测内部结构
+        // 探测模型参数 & motion
         const coreModel = model.internalModel && model.internalModel.coreModel;
-        let partIds = [];
-        let paramIds = [];
-        if (coreModel) {
-          if (coreModel._partIds) partIds = Array.from(coreModel._partIds);
-          else if (coreModel.parts && coreModel.parts._partIds) partIds = Array.from(coreModel.parts._partIds);
-          if (coreModel._parameterIds) paramIds = Array.from(coreModel._parameterIds);
-          else if (coreModel.parameters && coreModel.parameters._ids) paramIds = Array.from(coreModel.parameters._ids);
-        }
+        const paramIds = (coreModel && (coreModel._parameterIds || (coreModel.parameters && coreModel.parameters._ids))) || [];
+        const motionMgr = model.internalModel && model.internalModel.motionManager;
+        const motions = motionMgr && motionMgr.definitions ? Object.keys(motionMgr.definitions) : [];
+
+        // 保存到全局（供按钮使用）
+        catModels[name] = { app, model, motionMgr, wrap };
 
         status.innerHTML = `<span class="ok">✅ ${name} 加载成功</span><br>` +
-          `📦 Parts: ${partIds.length}<br>🎛️ Parameters: ${paramIds.length}<br>` +
-          (partIds.length ? `👀 部件: ${partIds.slice(0, 6).join(', ')}${partIds.length > 6 ? '...' : ''}` : '');
+          `<span class="meta">🎛️ 参数:</span> ${paramIds.length ? paramIds.length + ' 个' : '?'} · ` +
+          `<span class="meta">🎬 动作组:</span> ${motions.length ? motions.join(', ') : '(自动 idle)'}`;
+
+        // 点击画布 → tap_body 随机动作
+        canvas.addEventListener('pointerdown', () => {
+          triggerAction(name, 'tap_body');
+        });
+
       } catch (err) {
-        status.innerHTML = `<span class="err">❌ ${name} 加载失败: ${err.message}</span><br><small>${err.stack || ''}</small>`;
+        status.innerHTML = `<span class="err">❌ ${name} 加载失败: ${err.message}</span><br><small style="color:#999;">${err.stack || ''}</small>`;
+        console.error(err);
       }
     }
 
+    function triggerAction(catName, group) {
+      const data = catModels[catName];
+      if (!data) return;
+      const mgr = data.motionMgr;
+      if (!mgr) return;
+
+      try {
+        if (group === 'idle') {
+          // 让 motion manager 自动选 idle
+          if (mgr.groups && mgr.groups.idle) {
+            mgr.startRandomMotion(mgr.groups.idle, 1 /* Priority.NORMAL */);
+          } else if (mgr.startRandomMotion) {
+            mgr.startRandomMotion('idle', 1);
+          }
+        } else if (group === 'pet_head') {
+          // 自定义"摸头"——直接驱动头部 X/Y 参数来回摆
+          petHead(data.model);
+        } else {
+          // tap_body / flick_head — 用 startRandomMotion
+          const targetGroup = (group === 'flick_head') ? 'flick_head' : 'tap_body';
+          mgr.startRandomMotion
+            ? mgr.startRandomMotion(targetGroup, 1)
+            : data.model.motion && data.model.motion(targetGroup);
+        }
+      } catch (e) {
+        console.warn(`触发 ${group} 失败:`, e);
+      }
+    }
+
+    // 自定义"摸头"反馈：把头部参数做正弦摆动
+    // Live2DModelWebGL (Cubism2) 接受字符串 ID
+    function petHead(model) {
+      const coreModel = model.internalModel && model.internalModel.coreModel;
+      if (!coreModel) return;
+
+      // 直接尝试设置（字符串 ID）
+      const candidates = [
+        ['PARAM_ANGLE_X', 'PARAM_ANGLE_Y'],
+        ['ParamAngleX',  'ParamAngleY'],
+      ];
+      const start = performance.now();
+      const duration = 1800;
+      function tick() {
+        const t = (performance.now() - start) / duration;
+        if (t >= 1) return;
+        const amp = Math.sin(t * Math.PI) * 25;
+        for (const pair of candidates) {
+          try {
+            // setParamFloat 在 Live2DModelWebGL 上可用
+            if (typeof coreModel.setParamFloat === 'function') {
+              coreModel.setParamFloat(pair[0], amp / 30);
+              coreModel.setParamFloat(pair[1], Math.cos(t * Math.PI * 2) * 0.3);
+            } else if (typeof coreModel.setParameterValueById === 'function') {
+              coreModel.setParameterValueById(pair[0], amp / 30);
+              coreModel.setParameterValueById(pair[1], Math.cos(t * Math.PI * 2) * 0.3);
+            }
+          } catch (e) { /* ignore */ }
+        }
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+
+    // 已不再需要 findParam（兼容写法）
+    function findParam() { return -1; }
+
+    // ========= 启动 =========
     (async () => {
-      await loadCat('cv-hijiki', 'status-hijiki', '/models/free-cats/Hijiki/hijiki.model.json', 'Hijiki 黑猫');
-      await loadCat('cv-tororo', 'status-tororo', '/models/free-cats/Tororo/tororo.model.json', 'Tororo 白猫');
+      await loadCat('cv-hijiki', 'status-hijiki', 'wrap-hijiki',
+                    '/models/free-cats/Hijiki/hijiki.model.json', 'Hijiki 黑猫');
+      await loadCat('cv-tororo', 'status-tororo', 'wrap-tororo',
+                    '/models/free-cats/Tororo/tororo.model.json', 'Tororo 白猫');
+
+      // 绑定按钮
+      document.querySelectorAll('button[data-action]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const catName = btn.dataset.cat === 'hijiki' ? 'Hijiki 黑猫' : 'Tororo 白猫';
+          triggerAction(catName, btn.dataset.action);
+        });
+      });
     })();
   </script>
 </body>

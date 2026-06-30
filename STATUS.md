@@ -94,7 +94,9 @@
 - Live2D 官方免费模型 (Hijiki/Tororo) 是最干净的真猫来源，但版本停留在 Cubism 2
 
 ### 待办
-- [ ] （可选）下载并测试更多真动物模型：Ezri Little Cat, chycero Cat
+- [x] 升级 cats-test.html → 加交互按钮（随机互动/待机/甩头/摸头） + 飘落猫爪装饰
+- [x] 摸头反馈通过 setParamFloat 驱动 PARAM_ANGLE_X / PARAM_ANGLE_Y 实现头部摆动
+- [ ] （可选）下载并测试更多真动物模型：Ezri Little Cat, chycero Cat（itch.io 需登录）
 - [ ] （可选）实现 iframe 与主 demo 的双向通信（点击主 demo 模型同步切换 iframe 内猫）
 - [ ] （可选）尝试用 Cubism 2 → Cubism 4 转换工具，让主 demo 直接加载 .moc
 
