@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>Mao 模型预览</title>
+<style>
+  body { font-family: -apple-system, sans-serif; margin: 20px; background: #fafafa; color: #333; }
+  h1 { font-size: 18px; color: #444; }
+  .stage { width: 480px; height: 600px; border: 2px solid #ddd; background: #fff; }
+</style>
+</head>
+<body>
+<h1>🟦 Live2D Mao 模型（官方 sample）</h1>
+<p>让 PIXI 加载并显示 Mao 模型</p>
+<div class="stage" id="stage"></div>
+<div id="status"></div>
+<script src="lib/pixi.min.js"></script>
+<script src="lib/live2dcubismcore.min.js"></script>
+<script src="lib/pixi-live2d-display.min.js"></script>
+<script>
+  if (PIXI.live2d && PIXI.live2d.Live2DModel) {
+    PIXI.live2d.Live2DModel.registerTicker(PIXI.Ticker);
+  }
+  (async () => {
+    try {
+      const app = new PIXI.Application({
+        view: document.createElement('canvas'),
+        width: 480, height: 600, backgroundAlpha: 0, autoStart: true,
+      });
+      document.getElementById('stage').appendChild(app.view);
+      const model = await PIXI.live2d.Live2DModel.from('/models/l2d-samples-mirror/Mao/Mao.model3.json');
+      app.stage.addChild(model);
+      model.anchor.set(0.5, 0.5);
+      model.x = 240; model.y = 300;
+      const targetH = 580;
+      model.scale.set(targetH / model.height);
+      console.log('Mao loaded:', model.width, 'x', model.height, 'params:', model.internalModel.coreModel._parameterIds.length);
+      // dump all part IDs to console
+      const core = model.internalModel.coreModel;
+      console.log('=== Mao Parts ===');
+      core._partIds.forEach((id, i) => console.log('part', i, id));
+      console.log('=== Mao Params ===');
+      core._parameterIds.forEach((id, i) => console.log('param', i, id, '=', core._parameterValues[i]));
+      window.__mao = model;
+      document.getElementById('status').textContent = '✅ Mao 加载成功！' + model.width + '×' + model.height + ' / ' + core._parameterIds.length + ' 参数 / ' + core._partIds.length + ' Part';
+    } catch (e) {
+      document.getElementById('status').textContent = '❌ 错误：' + e.message;
+      console.error(e);
+    }
+  })();
+</script>
+</body>
+</html>

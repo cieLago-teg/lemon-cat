@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🐱 Live2D 改猫 Demo · Natori Morph</title>
+<link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+
+<header>
+  <h1>🐱 Natori → Cat 改造 Demo</h1>
+  <div class="sub">
+    把 Live2D 人物骨架改造为"猫"的实验台。<br />
+    模型目录:<code>public/models/pet-cat-morph/</code>(数据层已就绪,moc3 等您用 Cubism Editor 改造)。
+  </div>
+  <div class="morph-banner">
+    ✨ <b>运行时改造已生效！</b>直接点右侧 <b>④⁺ 面板</b> 里的按钮就能看到 Natori 变成"贴人皮的猫"。<br />
+    技术原理:Cubism Core 把每个 <code>Part</code>(语义组) 的不透明度存成 0-1 数值,我们直接设 <code>partOpacities[i]=0</code> 即可隐藏头发/衣服/眼镜/手部。<br />
+    💡 想加猫耳/尾巴就需要 <code>Cubism Editor</code> 改 moc3 — 但 <b>这不是必须的</b>。可以等您哪天有空再做。先看看当前"趴下猫"的样子对不对胃口?<br />
+    📚 详细指南:<a href="/scripts/cubism-morph-guide.md" target="_blank">scripts/cubism-morph-guide.md</a> | <a href="/docs/cubism-eval.md" target="_blank">docs/cubism-eval.md</a>
+  </div>
+</header>
+
+<main>
+  <!-- 左侧:4 个模型可视化 -->
+  <section class="canvas-stack">
+
+    <div class="model-card">
+      <div class="card-header">
+        <span class="card-title">① 模型加载(Mao 兔子法师 / Natori 改造)</span>
+        <span class="card-hint">切换模型 / 拖动 / 滚轮缩放</span>
+      </div>
+      <div id="canvas-wrap">
+        <div id="status-overlay">⏳ 加载中…</div>
+      </div>
+      <div style="display:flex;gap:6px;padding:8px 12px;background:var(--bg-soft);border-top:1px solid var(--accent-soft);">
+        <button class="btn btn-action" data-switch="mao" style="background:linear-gradient(135deg,#aaddff,#88ccff);color:#fff;font-size:11px;padding:6px 10px;flex:1;">🧙 Mao(4 臂女巫·官方)</button>
+        <button class="btn btn-action" data-switch="natori" style="background:linear-gradient(135deg,#ff9966,#ff7755);color:#fff;font-size:11px;padding:6px 10px;flex:1;">👤 Natori(改造中)</button>
+        <button class="btn btn-action" data-switch="wanko" style="background:linear-gradient(135deg,#ffddaa,#ffcc88);color:#fff;font-size:11px;padding:6px 10px;flex:1;">🐕 Wanko</button>
+      </div>
+    </div>
+
+    <div class="model-card">
+      <div class="card-header">
+        <span class="card-title">② 原 Natori 贴图(2048×2048,已备份 .original)</span>
+        <span class="card-hint">Live2D 把这张图按 UV 切给 mesh</span>
+      </div>
+      <div class="texture-only-wrap">
+        <img id="texture-only-img" alt="Natori 贴图" />
+        <div class="texture-only-side">
+          <p>📐 尺寸:<b>2048 × 2048</b></p>
+          <p>🎨 格式:<b>PNG(透明背景)</b></p>
+          <p>📦 模型文件:<code>Natori.model3.json</code></p>
+          <p>🗂 moc3 二进制:<code>Natori.moc3</code>(操作 Cubism Editor 后变猫)</p>
+          <p>📋 cdi3 参数定义:<code>Natori.cdi3.json</code>(<strong>21 个参数</strong>,对比原 96 个)</p>
+          <hr />
+          <p class="uv-tip">
+            👉 模型上的眼睛/嘴/头发,是从这张贴图的<strong>不同矩形区域</strong>采样出来的。<br />
+            这些矩形就是 <strong>UV 坐标</strong>。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="model-card">
+      <div class="card-header">
+        <span class="card-title">③ 新增贴图(Cubism Editor 操作后绑定到 mesh)</span>
+        <span class="card-hint">左:猫耳 / 右:猫尾</span>
+      </div>
+      <div class="cat-asset-wrap">
+        <div class="cat-asset-block">
+          <h3>🐱 猫耳 <code>cat_ears.png</code></h3>
+          <img id="cat-ears-img" alt="猫耳贴图" />
+          <p>绑定到:<code>ParamCatEarLRot</code>(左耳)、<code>ParamCatEarRRot</code>(右耳)</p>
+        </div>
+        <div class="cat-asset-block">
+          <h3>🐾 猫尾 <code>cat_tail.png</code></h3>
+          <img id="cat-tail-img" alt="猫尾贴图" />
+          <p>绑定到:<code>ParamTailSwing</code>(摆)、<code>ParamTailCurl</code>(卷)</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="model-card">
+      <div class="card-header">
+        <span class="card-title">③⁺ Live2D 官方动物模型 🆕</span>
+        <span class="card-hint">Mao / Wanko 贴图预览</span>
+      </div>
+      <div class="cat-asset-wrap">
+        <div class="cat-asset-block">
+          <h3>🟦 Mao <code>texture_00.png</code></h3>
+          <img src="/models/l2d-samples-mirror/Mao/Mao.2048/texture_00.png" alt="Mao 贴图" onerror="this.alt='❌ Mao 贴图加载失败'" />
+          <p>来源:<code>Live2D/CubismWebSamples/Resources/Mao</code></p>
+          <p style="color:#ff7755;">➡️ Mao 是什么动物?请您看贴图判断</p>
+        </div>
+        <div class="cat-asset-block">
+          <h3>🟨 Wanko <code>texture_00.png</code></h3>
+          <img src="/models/l2d-samples-mirror/Wanko/Wanko.1024/texture_00.png" alt="Wanko 贴图" onerror="this.alt='❌ Wanko 贴图加载失败'" />
+          <p>来源:<code>Live2D/CubismWebSamples/Resources/Wanko</code></p>
+          <p style="color:#ff7755;">➡️ Wanko 是什么动物?请您看贴图判断</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="model-card">
+      <div class="card-header">
+        <span class="card-title">🐱 真猫对比 (Hijiki 黑猫 + Tororo 白猫) 🆕</span>
+        <span class="card-hint">Live2D 官方 Cubism 2 格式 · npm: live2d-widget-model-{hijiki,tororo}</span>
+      </div>
+      <iframe
+        src="./cats-test.html"
+        style="width:100%;height:600px;border:0;border-radius:0 0 8px 8px;background:#1a1a2e;"
+        title="真猫 Live2D 模型对比"
+      ></iframe>
+      <div class="hint" style="margin-top:8px;">
+        💡 这是 iframe 嵌入的独立页面 (用 PIXI 6 + pixi-live2d-display@0.4)，与主 demo 的 PIXI 7 完全隔离。<br />
+        ✅ 来源:<a href="https://www.npmjs.com/package/live2d-widget-model-hijiki" target="_blank">npm: live2d-widget-model-hijiki</a>
+        &nbsp;·&nbsp;
+        <a href="https://www.npmjs.com/package/live2d-widget-model-tororo" target="_blank">live2d-widget-model-tororo</a>
+        · License: Live2D Free Material License · 仅教学/学习/个人非商用。<br />
+        🆚 对比 Mao (女巫) / Wanko (狗)：Hijiki/Tororo 是<strong>真正的动物模型</strong>，4 肢着地，而非人形站立。
+      </div>
+    </div>
+
+    <div class="model-card">
+      <div class="card-header">
+        <span class="card-title">④ 改造后的骨架(8 个参数组,21 个参数)</span>
+        <span class="card-hint">对比原 12 组 / 96 参数 → 精简到 8 组 / 21 参数</span>
+      </div>
+      <div class="skeleton-tree-wrap">
+        <svg id="skeleton-svg" viewBox="0 0 700 600" preserveAspectRatio="xMidYMin meet"
+             style="width:100%; height:auto; min-height:360px;"></svg>
+      </div>
+      <div class="hint" style="margin-top:8px;">
+        💡 已去除:眼 / 眉 / 嘴形 / 头发 / 衣服 / 配饰 / 装饰性手指。<br />
+        ✅ <strong>保留</strong>:头(3) + 身体(4) + 整体(3) + 左臂(3) + 右臂(3) + 嘴开闭(1)<br />
+        🆕 <strong>新增</strong>:猫耳(2) + 尾巴(2)<br />
+        🎯 <strong>Free 版上限 30 参数</strong>,我们用 21 个(剩余 9 个留作 Cubism Editor 操作扩展空间)。
+      </div>
+    </div>
+
+  </section>
+
+  <!-- 右侧:操作面板 -->
+  <aside class="controls">
+
+    <div class="panel">
+      <h2>① 头/身体/嘴(7 个核心滑块)</h2>
+      <div class="slider-row">
+        <label for="sl-ParamAngleX">转头 X(左右摇头)</label>
+        <input type="range" id="sl-ParamAngleX" min="-1" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamAngleX">0.00</span>
+      </div>
+      <div class="slider-row">
+        <label for="sl-ParamAngleY">转头 Y(抬头低头)</label>
+        <input type="range" id="sl-ParamAngleY" min="-1" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamAngleY">0.00</span>
+      </div>
+      <div class="slider-row">
+        <label for="sl-ParamAngleZ">歪头 Z</label>
+        <input type="range" id="sl-ParamAngleZ" min="-1" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamAngleZ">0.00</span>
+      </div>
+      <div class="slider-row">
+        <label for="sl-ParamBodyAngleX">身体 X</label>
+        <input type="range" id="sl-ParamBodyAngleX" min="-1" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamBodyAngleX">0.00</span>
+      </div>
+      <div class="slider-row">
+        <label for="sl-ParamBodyAngleY">身体 Y</label>
+        <input type="range" id="sl-ParamBodyAngleY" min="-1" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamBodyAngleY">0.00</span>
+      </div>
+      <div class="slider-row">
+        <label for="sl-ParamBodyAngleZ">身体 Z(身体的左右侧倾)</label>
+        <input type="range" id="sl-ParamBodyAngleZ" min="-1" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamBodyAngleZ">0.00</span>
+      </div>
+      <div class="slider-row">
+        <label for="sl-ParamMouthOpenY">嘴巴张开(唇形同步)</label>
+        <input type="range" id="sl-ParamMouthOpenY" min="0" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamMouthOpenY">0.00</span>
+      </div>
+      <div class="hint">💡 拖动滑块,① 区模型立刻变化。</div>
+    </div>
+
+    <div class="panel">
+      <h2>② 左右臂(每臂 3 段)</h2>
+      <div class="slider-row">
+        <label for="sl-ParamArmAL01">左肩</label>
+        <input type="range" id="sl-ParamArmAL01" min="-1" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamArmAL01">0.00</span>
+      </div>
+      <div class="slider-row">
+        <label for="sl-ParamArmAL02">左肘</label>
+        <input type="range" id="sl-ParamArmAL02" min="-1" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamArmAL02">0.00</span>
+      </div>
+      <div class="slider-row">
+        <label for="sl-ParamArmAL03">左腕</label>
+        <input type="range" id="sl-ParamArmAL03" min="-1" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamArmAL03">0.00</span>
+      </div>
+      <div class="slider-row">
+        <label for="sl-ParamArmAR01">右肩</label>
+        <input type="range" id="sl-ParamArmAR01" min="-1" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamArmAR01">0.00</span>
+      </div>
+      <div class="slider-row">
+        <label for="sl-ParamArmAR02">右肘</label>
+        <input type="range" id="sl-ParamArmAR02" min="-1" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamArmAR02">0.00</span>
+      </div>
+      <div class="slider-row">
+        <label for="sl-ParamArmAR03">右腕</label>
+        <input type="range" id="sl-ParamArmAR03" min="-1" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamArmAR03">0.00</span>
+      </div>
+      <div class="hint">💡 6 个手臂参数全部保留(对比原 25 个,精简到每臂 3 段:肩 + 肘 + 腕)。</div>
+    </div>
+
+    <div class="panel">
+      <h2>③ 猫耳 + 尾巴(4 个新增滑块)</h2>
+      <div class="slider-row">
+        <label for="sl-ParamCatEarLRot">左猫耳抖动</label>
+        <input type="range" id="sl-ParamCatEarLRot" min="-1" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamCatEarLRot">0.00</span>
+      </div>
+      <div class="slider-row">
+        <label for="sl-ParamCatEarRRot">右猫耳抖动</label>
+        <input type="range" id="sl-ParamCatEarRRot" min="-1" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamCatEarRRot">0.00</span>
+      </div>
+      <div class="slider-row">
+        <label for="sl-ParamTailSwing">尾巴左右摆</label>
+        <input type="range" id="sl-ParamTailSwing" min="-1" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamTailSwing">0.00</span>
+      </div>
+      <div class="slider-row">
+        <label for="sl-ParamTailCurl">尾巴卷曲度</label>
+        <input type="range" id="sl-ParamTailCurl" min="0" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamTailCurl">0.00</span>
+      </div>
+      <div class="hint">💡 此 4 个参数在原 moc3 中不存在,Cubism Editor 操作后才生效。moc3 改造期间拖动无视觉反应是<strong>正常</strong>。</div>
+    </div>
+
+    <div class="panel">
+      <h2>④ 猫化动作(手动驱动参数 + easing)</h2>
+      <div class="cat-action-grid">
+        <button class="btn btn-action" data-action="shake-tail">🐾 甩尾 3 秒</button>
+        <button class="btn btn-action" data-action="twitch-ear">👂 双耳抖动</button>
+        <button class="btn btn-action" data-action="purr">😺 蹭头</button>
+        <button class="btn btn-action" data-action="wake-up">😺 伸懒腰</button>
+      </div>
+      <div class="hint">💡 用 setInterval/requestAnimationFrame 手动驱动参数。moc3 改造前按钮触发的参数变化不可见(因为 mesh 还没绑定)。</div>
+    </div>
+
+    <div class="panel">
+      <h2>④⁺ 运行时改造 <span style="font-size:10px;background:#ffe0c4;color:#8b4a1a;padding:2px 6px;border-radius:4px;margin-left:4px;">🆕 不需 Cubism Editor</span></h2>
+      <div style="background:#fff8e8;padding:8px 10px;border-left:3px solid #e8a040;font-size:11px;color:#5a3a14;margin-bottom:10px;border-radius:4px;line-height:1.6;">
+        ✨ <b>好消息</b>:本面板通过运行时 Part Opacity 控制<b>已生效</b>!<br />
+        不需要 Cubism Editor,直接操作 <code>coreModel._partOpacities[i] = 0</code> 就能隐藏头发/衣服/眼镜/手部等部位。<br />
+        底层原理:Cubism Core 把每个 Part(语义组) 的不透明度存成连续 0-1 数值,值为 0 即完全隐藏。
+      </div>
+      <div class="cat-action-grid">
+        <button class="btn btn-action" data-morph="cat" style="background:linear-gradient(135deg,#ff9966,#ff7755);color:#fff;">🐱 一键变猫(隐藏头发+衣服+眼镜+手表+手)</button>
+        <button class="btn btn-action" data-morph="cat-crouch" style="background:linear-gradient(135deg,#cc6644,#aa4422);color:#fff;">🐾 趴下变猫(隐藏+弯腰)</button>
+        <button class="btn btn-action" data-morph="human" style="background:linear-gradient(135deg,#aaccee,#88aacc);color:#fff;">👤 还原人形</button>
+        <button class="btn btn-action" data-morph="hair-only" style="background:linear-gradient(135deg,#ffaadd,#ff88cc);color:#fff;">💇‍♀️ 仅隐藏头发</button>
+        <button class="btn btn-action" data-morph="clothes-only" style="background:linear-gradient(135deg,#ddcc88,#cca866);color:#fff;">👔 隐藏衣服+眼镜+手表</button>
+      </div>
+      <div style="margin-top:8px;font-size:10px;color:#999;">
+        当前状态:<b id="morph-status">未改造</b>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>⑤ 原 Natori 动效(motion3.json)</h2>
+      <div class="motion-grid">
+        <button class="btn btn-motion" data-group="Idle" data-index="0">待机 1</button>
+        <button class="btn btn-motion" data-group="Idle" data-index="1">待机 2</button>
+        <button class="btn btn-motion" data-group="Idle" data-index="2">待机 3</button>
+        <button class="btn btn-motion" data-group="TapBody" data-index="0">点击 1</button>
+        <button class="btn btn-motion" data-group="TapBody" data-index="1">点击 2</button>
+        <button class="btn btn-motion" data-group="TapBody" data-index="2">点击 3</button>
+        <button class="btn btn-motion" data-group="TapBody" data-index="3">点击 4</button>
+        <button class="btn btn-motion" data-group="TapBody" data-index="4">点击 5</button>
+      </div>
+      <div class="hint">💡 动效是<strong>预设曲线</strong>,跟滑块的"瞬时值"不一样。原 Natori 共有这些动效可调用。</div>
+    </div>
+
+    <div class="panel">
+      <h2>⑥ 实时状态</h2>
+      <div class="status-grid">
+        <div><span>FPS</span><b id="fps">--</b></div>
+        <div><span>模型尺寸</span><b id="model-size">--</b></div>
+        <div><span>参数总数</span><b id="param-count">--</b></div>
+        <div><span>贴图数量</span><b id="tex-count">--</b></div>
+        <div><span>HotArea</span><b id="hitarea-count">--</b></div>
+      </div>
+    </div>
+
+  </aside>
+</main>
+
+<footer>
+  <p>原模型源:<a href="https://github.com/Live2D/CubismWebSamples/tree/develop/Samples/Resources/Natori">Live2D/CubismWebSamples</a> · Free Material License · 仅教学/学习/个人非商用。</p>
+  <p style="margin-top:8px;color:#9eb6d3;">改造指南:<a href="/scripts/cubism-morph-guide.md">cubism-morph-guide.md</a> · 可行性评估:<a href="/docs/cubism-eval.md">cubism-eval.md</a></p>
+</footer>
+
+<script src="./lib/pixi.min.js"></script>
+<script src="./lib/live2dcubismcore.min.js"></script>
+<script src="./lib/pixi-live2d-display.min.js"></script>
+<script src="./app-morph.js"></script>
+</body>
+</html>

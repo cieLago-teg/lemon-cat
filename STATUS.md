@@ -70,3 +70,31 @@
 
 \- 没有 Evaluation Report 的 Skill 不能算正式通过
 
+
+---
+
+## 2026-06-30 · Live2D 真猫模型集成 (Natori → Cat Morph 阶段 2)
+
+### 完成项
+1. ✅ 从 npm 下载 Live2D 官方真猫模型：
+   - `live2d-widget-model-hijiki@1.0.5` (黑猫，Cubism 2 格式) — 188KB moc + 232KB texture + 9 mtn
+   - `live2d-widget-model-tororo@1.0.5` (白猫，Cubism 2 格式) — 188KB moc + 287KB texture + 9 mtn
+   - 来源：npm 官方包 (Live2D Free Material License)
+2. ✅ 下载 Cubism 2 Core (`live2d.min.js`, 129KB)
+3. ✅ 创建独立测试页 `public/live2d-anatomy-demo/cats-test.html`（PIXI 6.5 + pixi-live2d-display 0.4.0 + Cubism 2 + 4 Core 并存）
+4. ✅ 修复 Mao 按钮误导性标签（🐰 兔子法师 → 🧙 4 臂女巫）
+5. ✅ 在主 demo `morph-cat.html` 集成 iframe 嵌入 cats-test.html（双 PIXI 版本完全隔离）
+6. ✅ 验证：iframe 内 Hijiki/Tororo 均加载成功，canvas 渲染正常
+
+### 经验教训
+- pixi-live2d-display 0.5.0 移除了 Cubism 2 直加载支持 → 必须降到 0.4.0 才能加载 .moc
+- 双 PIXI 版本（6.5/7.4）冲突 → iframe 隔离是零风险方案
+- Live2D "Part" 命名不一定反映真实角色外观（PartRabbit ≠ 兔子角色）
+- Live2D CubismWebSamples 官方样例模型大多是人形（带动物元素的"魔法少女"风格），不是真动物
+- Live2D 官方免费模型 (Hijiki/Tororo) 是最干净的真猫来源，但版本停留在 Cubism 2
+
+### 待办
+- [ ] （可选）下载并测试更多真动物模型：Ezri Little Cat, chycero Cat
+- [ ] （可选）实现 iframe 与主 demo 的双向通信（点击主 demo 模型同步切换 iframe 内猫）
+- [ ] （可选）尝试用 Cubism 2 → Cubism 4 转换工具，让主 demo 直接加载 .moc
+

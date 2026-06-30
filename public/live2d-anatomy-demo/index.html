@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🧬 Live2D 模型解剖教学 Demo · Natori</title>
+<link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+
+<header>
+  <h1>🧬 Live2D 模型解剖教学 Demo</h1>
+  <div class="sub">
+    教你看清：一个人物 Live2D 模型到底长什么样、能改什么、怎么改。<br />
+    当前模型：<b>Natori</b>（Live2D 官方 Free Material License，教学专用 · 商用前必须替换）
+  </div>
+</header>
+
+<main>
+  <!-- 左侧：3 个模型可视化 -->
+  <section class="canvas-stack">
+
+    <div class="model-card">
+      <div class="card-header">
+        <span class="card-title">① 完整模型（点她可以动）</span>
+        <span class="card-hint">鼠标拖动 / 滚轮缩放</span>
+      </div>
+      <div id="canvas-wrap">
+        <div id="status-overlay">⏳ 加载中…</div>
+      </div>
+    </div>
+
+    <div class="model-card">
+      <div class="card-header">
+        <span class="card-title">② 模型原始贴图（1 张 2048×2048）</span>
+        <span class="card-hint">Live2D 把整张图按 UV 切给多个 mesh</span>
+      </div>
+      <div class="texture-only-wrap">
+        <img id="texture-only-img" alt="Natori 贴图" />
+        <div class="texture-only-side">
+          <p>📐 尺寸：<b>2048 × 2048</b></p>
+          <p>🎨 格式：<b>PNG（透明背景）</b></p>
+          <p>📦 模型文件：<code>Natori.model3.json</code></p>
+          <p>🗂 moc3 二进制：<code>Natori.moc3</code></p>
+          <p>📋 cdi3 参数定义：<code>Natori.cdi3.json</code>（90+ 参数）</p>
+          <hr />
+          <p class="uv-tip">
+            👉 上方 3D 模型上的眼睛/嘴/头发，是从这张贴图的<strong>不同矩形区域</strong>采样出来的。<br />
+            这些矩形就是 <strong>UV 坐标</strong>。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="model-card">
+      <div class="card-header">
+        <span class="card-title">③ UV 蒙版图（贴图是怎么切给身体的）</span>
+        <span class="card-hint">同一张贴图，被切成 ~10 个 mesh</span>
+      </div>
+      <div class="uv-overlay-wrap">
+        <img id="uv-base-img" alt="UV 蒙版" />
+        <svg id="uv-svg" viewBox="0 0 2048 2048" preserveAspectRatio="xMidYMid meet"></svg>
+        <div class="uv-legend">
+          <p>🟥 头发 · 🟨 脸 · 🟩 衣服 · 🟦 眼睛 · 🟪 嘴</p>
+          <p class="uv-tip">每个彩色矩形 = 一个 mesh（mesh 是 Live2D 渲染的最小单位，可被参数驱动变形）</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="model-card">
+      <div class="card-header">
+        <span class="card-title">④ 骨架结构（参数组 Deformer 树）</span>
+        <span class="card-hint">cdi3.json → 12 个参数组 → 95 个变形器 → 控制 mesh 顶点</span>
+      </div>
+      <div class="skeleton-tree-wrap">
+        <svg id="skeleton-svg" viewBox="0 0 600 800" preserveAspectRatio="xMidYMin meet"
+             style="width:100%; height:auto; min-height:360px;"></svg>
+      </div>
+      <div class="hint" style="margin-top:8px;">
+        💡 每个方块 = 一个<strong>参数组（Deformer Group）</strong>。结构来自 <code>Natori.cdi3.json</code>。<br />
+        Live2D 里 <strong>没有真正的"骨骼"</strong>——它用<strong>参数值</strong>驱动 <strong>deformer（变形器）</strong>去拉 mesh 顶点。<br />
+        这就是为什么"让一个人物模型趴下变猫"在理论上可行：给身体加一个旋转 deformer + 四肢重定位。
+      </div>
+    </div>
+
+  </section>
+
+  <!-- 右侧：操作面板 -->
+  <aside class="controls">
+
+    <div class="panel">
+      <h2>① 5 个核心表情参数</h2>
+      <div class="slider-row">
+        <label for="sl-ParamAngleX">转头 X（左右摇头）</label>
+        <input type="range" id="sl-ParamAngleX" min="-1" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamAngleX">0.0</span>
+      </div>
+      <div class="slider-row">
+        <label for="sl-ParamAngleY">转头 Y（抬头低头）</label>
+        <input type="range" id="sl-ParamAngleY" min="-1" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamAngleY">0.0</span>
+      </div>
+      <div class="slider-row">
+        <label for="sl-ParamAngleZ">歪头 Z</label>
+        <input type="range" id="sl-ParamAngleZ" min="-1" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamAngleZ">0.0</span>
+      </div>
+      <div class="slider-row">
+        <label for="sl-ParamEyeLOpen">左眼开合（眨眼）</label>
+        <input type="range" id="sl-ParamEyeLOpen" min="0" max="1" step="0.01" value="1" />
+        <span class="val" id="v-ParamEyeLOpen">1.0</span>
+      </div>
+      <div class="slider-row">
+        <label for="sl-ParamMouthOpenY">嘴巴张开</label>
+        <input type="range" id="sl-ParamMouthOpenY" min="0" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamMouthOpenY">0.0</span>
+      </div>
+      <div class="slider-row">
+        <label for="sl-ParamBodyAngleX">身体 X（身体语言）</label>
+        <input type="range" id="sl-ParamBodyAngleX" min="-1" max="1" step="0.01" value="0" />
+        <span class="val" id="v-ParamBodyAngleX">0.0</span>
+      </div>
+      <div class="hint">💡 拖动上面任一滑块，<b>① 区模型立刻变化</b>。</div>
+    </div>
+
+    <div class="panel">
+      <h2>② 动效（motion3.json 触发的曲线动画）</h2>
+      <div class="motion-grid">
+        <button class="btn btn-motion" data-group="Idle" data-index="0">待机 1</button>
+        <button class="btn btn-motion" data-group="Idle" data-index="1">待机 2</button>
+        <button class="btn btn-motion" data-group="Idle" data-index="2">待机 3</button>
+        <button class="btn btn-motion" data-group="TapBody" data-index="0">点击 1</button>
+        <button class="btn btn-motion" data-group="TapBody" data-index="1">点击 2</button>
+        <button class="btn btn-motion" data-group="TapBody" data-index="2">点击 3</button>
+        <button class="btn btn-motion" data-group="TapBody" data-index="3">点击 4</button>
+        <button class="btn btn-motion" data-group="TapBody" data-index="4">点击 5</button>
+      </div>
+      <div class="hint">💡 动效是<strong>预设曲线</strong>，跟滑块的"瞬时值"不一样。</div>
+    </div>
+
+    <div class="panel">
+      <h2>③ 表情（exp3.json）</h2>
+      <div class="motion-grid" id="expression-grid">
+        <!-- JS 动态生成 -->
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>④ 身体部位 → 同步高亮参数</h2>
+      <div class="hotspot-grid">
+        <button class="btn btn-hotspot" data-target="eyes">👀 眼睛</button>
+        <button class="btn btn-hotspot" data-target="mouth">👄 嘴巴</button>
+        <button class="btn btn-hotspot" data-target="brow">🤨 眉毛</button>
+        <button class="btn btn-hotspot" data-target="head">🗣 头部</button>
+        <button class="btn btn-hotspot" data-target="body">💪 身体</button>
+        <button class="btn btn-hotspot" data-target="arm">💅 手臂</button>
+        <button class="btn btn-hotspot" data-target="hair">💇 头发</button>
+      </div>
+      <div id="hotspot-param-display" class="hotspot-params"></div>
+    </div>
+
+    <div class="panel">
+      <h2>⑤ 全部 cdi3 参数（折叠）</h2>
+      <details>
+        <summary>展开 / 折叠 90+ 参数</summary>
+        <div id="all-params"></div>
+      </details>
+      <div class="hint">💡 这是 <code>Natori.cdi3.json</code> 里的所有参数。Live2D 模型就是靠这些参数驱动 mesh 变形的。</div>
+    </div>
+
+    <div class="panel">
+      <h2>⑥ 实时状态</h2>
+      <div class="status-grid">
+        <div><span>FPS</span><b id="fps">--</b></div>
+        <div><span>模型尺寸</span><b id="model-size">--</b></div>
+        <div><span>参数总数</span><b id="param-count">--</b></div>
+        <div><span>贴图数量</span><b id="tex-count">--</b></div>
+      </div>
+    </div>
+
+  </aside>
+</main>
+
+<footer>
+  模型源：<a href="https://github.com/Live2D/CubismWebSamples/tree/develop/Samples/Resources/Natori">Live2D/CubismWebSamples</a> · Free Material License · 仅教学/学习/个人非商用。
+</footer>
+
+<script src="./lib/pixi.min.js"></script>
+<script src="./lib/live2dcubismcore.min.js"></script>
+<script src="./lib/pixi-live2d-display.min.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>

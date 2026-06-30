@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Hijiki 黑猫模型加载测试 · 真猫 Live2D</title>
+  <style>
+    body {
+      margin: 0;
+      background: #1a1a2e;
+      color: #eee;
+      font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    h1 { color: #ffd166; }
+    #canvas-wrap {
+      width: 600px;
+      height: 700px;
+      background: linear-gradient(180deg, #16213e 0%, #0f3460 100%);
+      border: 2px solid #ffd166;
+      border-radius: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+    #live2d-canvas { width: 100%; height: 100%; }
+    #info {
+      max-width: 600px;
+      margin-top: 16px;
+      padding: 12px 20px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .ok { color: #06d6a0; }
+    .err { color: #ef476f; }
+  </style>
+</head>
+<body>
+  <h1>🐱 Hijiki 黑猫加载测试</h1>
+  <p>来源：npm <code>live2d-widget-model-hijiki@1.0.5</code> · Live2D Cubism 2 格式</p>
+
+  <div id="canvas-wrap">
+    <canvas id="live2d-canvas"></canvas>
+  </div>
+
+  <div id="info">
+    <div id="status">⏳ 加载中...</div>
+  </div>
+
+  <!-- 同时加载 Cubism 2 和 4 Core，pixi-live2d-display 会自动适配 -->
+  <script src="./lib/live2d.min.js"></script>
+  <script src="./lib/live2dcubismcore.min.js"></script>
+  <script src="./lib/pixi.min.js"></script>
+  <script src="./lib/pixi-live2d-display.min.js"></script>
+
+  <script>
+    (async () => {
+      const status = document.getElementById('status');
+      const canvas = document.getElementById('live2d-canvas');
+
+      try {
+        status.innerHTML = '⏳ 创建 PIXI 应用...';
+        const app = new PIXI.Application({
+          view: canvas,
+          width: 600,
+          height: 700,
+          backgroundColor: 0x16213e,
+          resolution: window.devicePixelRatio || 1,
+          autoDensity: true,
+        });
+
+        // pixi-live2d-display 0.5.x 会自动检测 Cubism 版本，只要同时加载 Cubism 2 Core 和 4 Core 即可
+        if (PIXI.live2d && PIXI.live2d.Live2DModel) {
+          const hasC2 = !!window.Live2D;
+          const hasC4 = !!(window.Live2DCubismCore || (window.CubismCoreModule && window.CubismCoreModule.cubismCore));
+          status.innerHTML += `<br>✅ Cubism 2 Core: ${hasC2 ? '已加载' : '❌ 缺失'}, Cubism 4 Core: ${hasC4 ? '已加载' : '❌ 缺失'}`;
+        }
+
+        status.innerHTML += '<br>⏳ 加载 Hijiki (黑猫) ...';
+        const modelUrl = '/models/free-cats/Hijiki/hijiki.model.json';
+        const model = await PIXI.live2d.Live2DModel.from(modelUrl, {
+          autoInteract: true,
+          autoFocus: true,
+        });
+
+        // 居中 + 缩放
+        const scale = 0.32;
+        model.scale.set(scale);
+        model.x = (600 - model.width * scale) / 2;
+        model.y = (700 - model.height * scale) / 2;
+        app.stage.addChild(model);
+
+        // 显示一些内部参数
+        const coreModel = model.internalModel && model.internalModel.coreModel;
+        const partIds = coreModel && coreModel._partIds ? Array.from(coreModel._partIds) : [];
+        const paramIds = coreModel && coreModel._parameterIds ? Array.from(coreModel._parameterIds) : [];
+
+        status.innerHTML = `
+          <div class="ok">✅ Hijiki (黑猫) 加载成功！</div>
+          <div>📦 Parts: ${partIds.length}</div>
+          <div>🎛️ Parameters: ${paramIds.length}</div>
+          <div>👀 部分部件: ${partIds.slice(0, 8).join(', ')}${partIds.length > 8 ? '...' : ''}</div>
+          <div>🎬 部分参数: ${paramIds.slice(0, 8).join(', ')}${paramIds.length > 8 ? '...' : ''}</div>
+        `;
+      } catch (err) {
+        status.innerHTML = `<div class="err">❌ 加载失败: ${err.message}</div><pre style="font-size:11px;color:#faa">${err.stack || ''}</pre>`;
+      }
+    })();
+  </script>
+</body>
+</html>
