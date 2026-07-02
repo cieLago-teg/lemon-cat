@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>🗺️ atlas_region_map 可视化 · 自动生成</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0d1117; color: #eee; font-family: "Cascadia Code", "Consolas", monospace; padding: 18px; }
+    h1 { color: #06d6a0; font-size: 18px; margin: 0 0 6px; }
+    .sub { color: #9eb6d3; font-size: 12px; margin-bottom: 14px; line-height: 1.6; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0; align-items: center; }
+    button { padding: 8px 14px; background: #161b22; border: 1px solid #30363d; color: #eee; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: inherit; }
+    button:hover { background: #21262d; }
+    button.primary { background: #06d6a0; color: #0d1117; border-color: #06d6a0; font-weight: 700; }
+    .container { display: flex; flex-direction: column; gap: 16px; margin-top: 14px; }
+    .stage { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 8px; min-width: 0; width: 100%; }
+    canvas { display: block; width: 100%; height: auto; max-width: 100%; }
+    .panel { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px; max-height: 50vh; overflow-y: auto; min-width: 0; width: 100%; }
+    .legend { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 4px; cursor: pointer; }
+    .legend-item:hover { background: #21262d; }
+    .legend-item.missing { opacity: 0.4; }
+    .legend-item.missing .id { text-decoration: line-through; }
+    .swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+    .id { color: #ffd166; flex: 1; word-break: break-all; }
+    .info { color: #9eb6d3; font-size: 10px; }
+    .toggle { display: flex; gap: 6px; }
+    .toggle label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>🗺️ atlas_region_map 可视化</h1>
+  <div class="sub">
+    加载贴图 + 自动生成的 17 个 PARTS_01_xxx 区域映射。点击图例可显隐每个零件的 bbox。
+    <strong style="color:#06d6a0;">绿色</strong>=有数据，<strong style="color:#ef476f;">红色</strong>=启发式未匹配。
+  </div>
+
+  <div class="row">
+    <button class="primary" onclick="loadModel('hijiki')">🐈‍⬛ 显示黑猫</button>
+    <button class="primary" onclick="loadModel('tororo')">🐱 显示白猫</button>
+    <button onclick="downloadCurrent()">💾 下载 atlas_region_map.json</button>
+    <div class="toggle">
+      <label><input type="checkbox" id="showLabels" checked> 显标签</label>
+      <label><input type="checkbox" id="showBbox" checked> 显 bbox</label>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="stage">
+      <canvas id="cv" width="1024" height="1024" style="background:#0a0e14;"></canvas>
+    </div>
+    <div class="panel">
+      <h3 style="margin:0 0 10px;color:#76a8ff;font-size:13px;">📋 零件清单</h3>
+      <div id="legend" class="legend"></div>
+    </div>
+  </div>
+
+  <script>
+    // 17 个 PARTS 用 17 种区分色（HLS 均匀分布）
+    const PART_COLORS = {};
+    for (let i = 0; i < 17; i++) {
+      const hue = (i * 360 / 17) | 0;
+      PART_COLORS[getPartId(i)] = `hsl(${hue}, 80%, 60%)`;
+    }
+    function getPartId(i) {
+      return [
+        'PARTS_01_ARM_L','PARTS_01_ARM_L_02','PARTS_01_ARM_R','PARTS_01_ARM_R_02',
+        'PARTS_01_BACKGROUND','PARTS_01_BODY','PARTS_01_BROW_001','PARTS_01_CHEST',
+        'PARTS_01_CORE_001','PARTS_01_EAR_001','PARTS_01_EYE_001','PARTS_01_EYE_BALL_001',
+        'PARTS_01_FACE_001','PARTS_01_MOUTH_001','PARTS_01_NOSE_001','PARTS_01_SKETCH','PARTS_01_TAIL'
+      ][i];
+    }
+    const PART_ZH = {
+      'PARTS_01_ARM_L': '左前爪·前', 'PARTS_01_ARM_L_02': '左前爪·后',
+      'PARTS_01_ARM_R': '右前爪·前', 'PARTS_01_ARM_R_02': '右前爪·后',
+      'PARTS_01_BACKGROUND': '背景', 'PARTS_01_BODY': '身体',
+      'PARTS_01_BROW_001': '眉毛', 'PARTS_01_CHEST': '胸',
+      'PARTS_01_CORE_001': '脸核心', 'PARTS_01_EAR_001': '耳朵',
+      'PARTS_01_EYE_001': '眼睛', 'PARTS_01_EYE_BALL_001': '瞳孔',
+      'PARTS_01_FACE_001': '脸底色', 'PARTS_01_MOUTH_001': '嘴',
+      'PARTS_01_NOSE_001': '鼻', 'PARTS_01_SKETCH': '描边', 'PARTS_01_TAIL': '尾巴',
+    };
+
+    let currentModel = null;
+    let currentData = null;
+    let hidden = new Set();
+
+    async function loadModel(modelId) {
+      currentModel = modelId;
+      hidden = new Set();
+      const tex = new Image();
+      tex.crossOrigin = 'anonymous';
+      await new Promise((res, rej) => { tex.onload = res; tex.onerror = rej; tex.src = `/models/free-cats/${modelId === 'hijiki' ? 'Hijiki' : 'Tororo'}/moc/${modelId}.2048/texture_00.png`; });
+
+      const resp = await fetch(`/models/free-cats/${modelId === 'hijiki' ? 'Hijiki' : 'Tororo'}/moc/${modelId}.atlas_region_map.mapped.json`);
+      currentData = await resp.json();
+
+      draw(tex);
+      renderLegend();
+    }
+
+    function draw(tex) {
+      const cv = document.getElementById('cv');
+      const ctx = cv.getContext('2d');
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      ctx.drawImage(tex, 0, 0, cv.width, cv.height);
+
+      const showBbox = document.getElementById('showBbox').checked;
+      const showLabels = document.getElementById('showLabels').checked;
+      const sx = cv.width / 2048, sy = cv.height / 2048;
+
+      // 画所有连通块
+      currentData.blocks.forEach(b => {
+        const part = Object.entries(currentData.heuristicMapping.regions).find(([k, v]) => v.blocks.includes(b.index))?.[0];
+        if (!part || hidden.has(part)) return;
+        const color = PART_COLORS[part];
+        ctx.strokeStyle = color + '60';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(b.bbox.x * sx, b.bbox.y * sy, b.bbox.w * sx, b.bbox.h * sy);
+      });
+
+      // 画每个 part 的合并 bbox
+      if (showBbox) {
+        Object.entries(currentData.heuristicMapping.regions).forEach(([part, info]) => {
+          if (hidden.has(part) || !info.bbox) return;
+          const color = PART_COLORS[part];
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 3;
+          ctx.strokeRect(info.bbox.x * sx + 1, info.bbox.y * sy + 1, info.bbox.w * sx - 2, info.bbox.h * sy - 2);
+          if (showLabels) {
+            ctx.fillStyle = color;
+            ctx.fillRect(info.bbox.x * sx, info.bbox.y * sy, 110, 18);
+            ctx.fillStyle = '#000';
+            ctx.font = 'bold 11px monospace';
+            ctx.fillText(`${PART_ZH[part] || part}`, info.bbox.x * sx + 4, info.bbox.y * sy + 13);
+          }
+        });
+      }
+    }
+
+    function renderLegend() {
+      const lg = document.getElementById('legend');
+      lg.innerHTML = '';
+      Object.entries(currentData.heuristicMapping.regions).forEach(([part, info]) => {
+        const item = document.createElement('div');
+        item.className = 'legend-item' + (info.bbox ? '' : ' missing');
+        item.innerHTML = `
+          <input type="checkbox" ${hidden.has(part) ? '' : 'checked'} onchange="togglePart('${part}', this.checked)">
+          <div class="swatch" style="background:${PART_COLORS[part]}"></div>
+          <div style="flex:1">
+            <div class="id">${part}</div>
+            <div class="info">${PART_ZH[part]} ${info.bbox ? `· ${info.bbox.w}×${info.bbox.h} · ${info.blocks.length} 块` : '· 启发式未匹配'}</div>
+          </div>
+        `;
+        lg.appendChild(item);
+      });
+    }
+
+    function togglePart(part, visible) {
+      if (visible) hidden.delete(part); else hidden.add(part);
+      const tex = new Image();
+      tex.onload = () => draw(tex);
+      tex.src = `/models/free-cats/${currentModel === 'hijiki' ? 'Hijiki' : 'Tororo'}/moc/${currentModel}.2048/texture_00.png?cb=${Date.now()}`;
+    }
+
+    document.getElementById('showBbox').onchange = () => { if (currentData) loadModel(currentModel); };
+    document.getElementById('showLabels').onchange = () => { if (currentData) loadModel(currentModel); };
+
+    function downloadCurrent() {
+      if (!currentData) return;
+      const blob = new Blob([JSON.stringify(currentData, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `atlas_region_map_${currentModel}.json`;
+      a.click();
+    }
+
+    // 自动加载 Hijiki
+    loadModel('hijiki');
+  </script>
+</body>
+</html>

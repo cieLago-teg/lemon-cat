@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>🎯 Atlas 部位标注 v4 · 智能部位识别</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #eee;
+      font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      padding: 0;
+      min-height: 100vh;
+      user-select: none;
+      overflow: hidden;
+    }
+    .top-bar {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(10px);
+      padding: 8px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex; align-items: center; gap: 12px;
+      font-size: 13px;
+    }
+    .top-bar .progress-bar { flex: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; max-width: 400px; }
+    .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #06d6a0, #ffd166); transition: width 0.3s; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr 380px;
+      gap: 12px;
+      padding: 12px;
+      height: calc(100vh - 50px);
+      max-width: 2000px;
+      margin: 0 auto;
+    }
+    .sidebar {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-header {
+      padding: 12px 14px;
+      background: #21262d;
+      border-bottom: 1px solid #30363d;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .sidebar-body { padding: 12px 14px; overflow-y: auto; flex: 1; }
+
+    .task-card {
+      background: linear-gradient(135deg, #ffd166 0%, #ffb74d 100%);
+      color: #1a1a2e;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 12px rgba(255,209,102,0.2);
+    }
+    .task-card .step-no { font-size: 10px; font-weight: 700; background: rgba(0,0,0,0.15); padding: 2px 8px; border-radius: 8px; display: inline-block; }
+    .task-card h3 { margin: 8px 0 6px; font-size: 17px; }
+    .task-card .desc { font-size: 12px; line-height: 1.5; margin-bottom: 8px; }
+    .task-card .hint { font-size: 11px; background: rgba(0,0,0,0.12); padding: 6px 8px; border-radius: 6px; line-height: 1.5; }
+
+    /* 部位参考图 */
+    .reference-svg {
+      width: 100%;
+      max-width: 240px;
+      margin: 0 auto 12px;
+      display: block;
+      background: #0d1117;
+      border-radius: 8px;
+      border: 1px solid #30363d;
+      padding: 8px;
+    }
+    .reference-svg .ref-highlight {
+      fill: #ffd166;
+      fill-opacity: 0.5;
+      stroke: #ffd166;
+      stroke-width: 2;
+    }
+
+    .part-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: 6px;
+      cursor: pointer; font-size: 12px;
+      transition: background 0.15s;
+      border-left: 3px solid transparent;
+      margin-bottom: 2px;
+    }
+    .part-item:hover { background: rgba(255,255,255,0.04); }
+    .part-item.active { background: rgba(255,209,102,0.15); border-left-color: #ffd166; font-weight: 600; }
+    .part-item.selected { background: rgba(118, 168, 255, 0.15); border-left-color: #76a8ff; }
+    .part-item.done { opacity: 0.6; }
+    .part-item.done.selected { opacity: 1; }
+    .part-item .icon { width: 20px; text-align: center; font-size: 13px; }
+    .part-item .label-text { flex: 1; }
+    .part-item .status { font-size: 10px; padding: 2px 6px; border-radius: 4px; }
+    .status.pending { background: #444; color: #ccc; }
+    .status.done { background: #06d6a0; color: #1a1a2e; font-weight: 700; }
+    .status.current { background: #ffd166; color: #1a1a2e; font-weight: 700; }
+    .part-item .sub { font-size: 9px; color: #9eb6d3; }
+
+    .canvas-stage {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+    .canvas-toolbar {
+      padding: 8px 12px;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      display: flex; gap: 6px; align-items: center;
+      font-size: 12px;
+      flex-wrap: wrap;
+    }
+    .btn-mini {
+      padding: 4px 10px; border: 1px solid #444;
+      border-radius: 6px; background: #2a2f37;
+      color: #eee; cursor: pointer; font-size: 12px;
+    }
+    .btn-mini.active { background: #06d6a0; border-color: #06d6a0; color: #1a1a2e; font-weight: 600; }
+    .canvas-mode-switch { display: flex; gap: 2px; background: #1a1f2b; padding: 2px; border-radius: 6px; }
+    .canvas-mode-switch button { padding: 4px 10px; background: transparent; border: none; color: #9eb6d3; cursor: pointer; border-radius: 4px; font-size: 11px; }
+    .canvas-mode-switch button.active { background: #76a8ff; color: #1a1a2e; font-weight: 600; }
+
+    #canvas-host {
+      flex: 1; position: relative; overflow: auto;
+      background:
+        linear-gradient(45deg, #1a1f2b 25%, transparent 25%),
+        linear-gradient(-45deg, #1a1f2b 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #1a1f2b 75%),
+        linear-gradient(-45deg, transparent 75%, #1a1f2b 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+      cursor: crosshair;
+    }
+    #texture-img { display: block; max-width: 100%; image-rendering: pixelated; pointer-events: none; }
+
+    .region-rect { position: absolute; pointer-events: auto; }
+    .region-rect .frame { position: absolute; inset: 0; border: 2px solid #76a8ff; box-shadow: 0 0 0 1px rgba(0,0,0,0.5), 0 0 12px rgba(118,168,255,0.4); }
+    .region-rect.unselected .frame { border: 2px solid; box-shadow: 0 0 0 1px rgba(0,0,0,0.3); }
+    .region-rect .label { position: absolute; top: -24px; left: 0; background: #76a8ff; color: #1a1a2e; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 3px; white-space: nowrap; pointer-events: none; }
+    .region-rect .size-tag { position: absolute; bottom: -22px; right: 0; background: rgba(0,0,0,0.75); color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 3px; white-space: nowrap; font-family: "Cascadia Code", monospace; pointer-events: none; }
+
+    .handle { position: absolute; width: 12px; height: 12px; background: #76a8ff; border: 2px solid white; border-radius: 2px; pointer-events: auto; }
+    .handle.tl { top: -7px; left: -7px; cursor: nw-resize; }
+    .handle.tr { top: -7px; right: -7px; cursor: ne-resize; }
+    .handle.bl { bottom: -7px; left: -7px; cursor: sw-resize; }
+    .handle.br { bottom: -7px; right: -7px; cursor: se-resize; }
+    .handle.t  { top: -7px; left: 50%; margin-left: -6px; cursor: n-resize; }
+    .handle.b  { bottom: -7px; left: 50%; margin-left: -6px; cursor: s-resize; }
+    .handle.l  { left: -7px; top: 50%; margin-top: -6px; cursor: w-resize; }
+    .handle.r  { right: -7px; top: 50%; margin-top: -6px; cursor: e-resize; }
+
+    .move-overlay { position: absolute; inset: 0; cursor: move; }
+
+    /* 绘制中的框（灵敏度低，不再"即时捕捉"）*/
+    .drawing-rect {
+      position: absolute;
+      border: 2px dashed #76a8ff;
+      background: rgba(118, 168, 255, 0.12);
+      pointer-events: none;
+    }
+    .drawing-rect .live-size {
+      position: absolute; bottom: -22px; right: 0;
+      background: rgba(118, 168, 255, 0.95); color: #1a1a2e;
+      font-size: 11px; padding: 2px 8px; border-radius: 3px;
+      font-family: "Cascadia Code", monospace; font-weight: 700;
+      pointer-events: none;
+    }
+
+    .preview-box { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+    .preview-box h5 { margin: 0 0 8px; font-size: 11px; color: #9eb6d3; display: flex; align-items: center; justify-content: space-between; }
+    .preview-row { display: flex; gap: 6px; }
+    .preview-item { flex: 1; text-align: center; }
+    .preview-item .label { font-size: 10px; color: #9eb6d3; margin-bottom: 4px; }
+    .preview-img {
+      width: 100%; aspect-ratio: 1/1;
+      background:
+        linear-gradient(45deg, #1a1f2b 25%, transparent 25%),
+        linear-gradient(-45deg, #1a1f2b 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #1a1f2b 75%),
+        linear-gradient(-45deg, transparent 75%, #1a1f2b 75%);
+      background-size: 10px 10px;
+      background-position: 0 0, 0 5px, 5px -5px, -5px 0;
+      border: 1px solid #444;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .preview-img img { width: 100%; height: 100%; object-fit: contain; }
+    .stats { margin-top: 6px; font-size: 10px; color: #9eb6d3; text-align: center; }
+
+    .json-preview { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 8px; font-family: "Cascadia Code", monospace; font-size: 10px; color: #06d6a0; max-height: 140px; overflow: auto; white-space: pre; }
+
+    .btn { width: 100%; padding: 8px; margin-bottom: 6px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .btn-primary { background: #06d6a0; color: white; }
+    .btn-warn { background: #ef476f; color: white; }
+    .btn-secondary { background: #2a2f37; color: #eee; border: 1px solid #444; }
+
+    .congrats { background: linear-gradient(135deg, #06d6a0, #05b386); color: white; padding: 14px; border-radius: 10px; text-align: center; display: none; margin-top: 10px; }
+    .congrats.show { display: block; }
+
+    .shortcut-hint { background: #0d1117; border: 1px dashed #444; border-radius: 6px; padding: 8px 10px; font-size: 10px; color: #9eb6d3; line-height: 1.7; margin-top: 10px; }
+    .shortcut-hint kbd { background: #2a2f37; border: 1px solid #444; border-radius: 3px; padding: 1px 5px; font-family: "Cascadia Code", monospace; color: #ffd166; font-size: 10px; }
+
+    .toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: rgba(6, 214, 160, 0.95); color: white; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s, transform 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(10px); }
+    .toast.warn { background: rgba(239, 71, 111, 0.95); }
+
+    .part-group { margin-bottom: 8px; }
+    .part-group-title { font-size: 10px; color: #9eb6d3; padding: 4px 10px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <span style="font-weight:700;">🎯 Atlas 部位标注 v4</span>
+  <button class="btn-mini" id="modelHijiki" style="background:#06d6a0;border-color:#06d6a0;color:#1a1a2e;font-weight:600;">🐈‍⬛ 黑猫</button>
+  <button class="btn-mini" id="modelTororo">🐱 白猫</button>
+  <span style="color:#9eb6d3;">显示：</span>
+  <div class="canvas-mode-switch">
+    <button id="modeRect" class="active">▭ 矩形</button>
+    <button id="modeMask">🎨 mask</button>
+    <button id="modeBoth">⚡ 都看</button>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <span id="progressText">0 / 18</span>
+</div>
+
+<div class="layout">
+
+  <div class="sidebar">
+    <div class="sidebar-header">📋 部位清单</div>
+    <div class="sidebar-body" id="partList"></div>
+  </div>
+
+  <div class="canvas-stage">
+    <div id="canvas-host">
+      <img id="texture-img" src="" alt="texture">
+      <canvas id="hidden-canvas" style="display:none;"></canvas>
+      <div id="overlay-layer"></div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-header">🎯 当前任务</div>
+    <div class="sidebar-body">
+      <div class="task-card" id="currentTask">
+        <span class="step-no" id="stepNo">第 1 步</span>
+        <h3 id="taskTitle">🐈‍⬛ 左耳外侧</h3>
+        <div class="desc" id="taskDesc">用鼠标拖动画一个框</div>
+        <div class="hint" id="taskHint">💡 拖动鼠标画框</div>
+      </div>
+
+      <!-- 部位参考图：告诉用户这个部位在猫身体上对应哪里 -->
+      <div class="task-card" style="background: linear-gradient(135deg, #2a2f37 0%, #1a1f2b 100%); color: #eee; padding: 10px;">
+        <div style="font-size: 11px; color: #9eb6d3; margin-bottom: 6px; text-align: center;">📍 部位在猫身上的位置</div>
+        <div id="referenceContainer"></div>
+      </div>
+
+      <div class="preview-box" id="previewBox" style="display:none;">
+        <h5>
+          <span>👀 实时预览</span>
+          <span style="color:#06d6a0;" id="previewTitle">左耳外侧</span>
+        </h5>
+        <div class="preview-row">
+          <div class="preview-item">
+            <div class="label">原图</div>
+            <div class="preview-img"><img id="prevOriginal" src=""></div>
+          </div>
+          <div class="preview-item">
+            <div class="label">mask</div>
+            <div class="preview-img"><img id="prevMask" src=""></div>
+          </div>
+          <div class="preview-item">
+            <div class="label">叠加</div>
+            <div class="preview-img"><img id="prevOverlay" src=""></div>
+          </div>
+        </div>
+        <div class="stats" id="maskStats"></div>
+      </div>
+
+      <button class="btn btn-primary" id="btnConfirm">✅ 确认这步</button>
+      <button class="btn btn-secondary" id="btnRedo">🔄 重画</button>
+      <button class="btn btn-secondary" id="btnSkip">⏭️ 跳过</button>
+      <button class="btn btn-warn" id="btnExport" style="display:none;">📥 下载 JSON</button>
+
+      <div class="shortcut-hint">
+        <b>⌨️ 快捷键</b><br>
+        <kbd>Enter</kbd> 确认 · <kbd>Delete</kbd> 删除选中<br>
+        <kbd>Shift</kbd>+拖 = 正方形 · <kbd>Alt</kbd>+拖 = 从中心<br>
+        <kbd>Esc</kbd> 取消 · <kbd>←</kbd> <kbd>→</kbd> 切换部位
+      </div>
+
+      <div class="json-preview" id="jsonPreview">// JSON 预览</div>
+
+      <div class="congrats" id="congrats">
+        <h3>🎉 完成！</h3>
+        <p>下载 JSON 即可交给开发</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ====== 部位清单（拆细到眼睛每个部分） ======
+  // 按解剖学层次组织：耳朵（4）→ 眼睛（4：眼白×2 + 瞳孔×2）→ 鼻嘴（2）→ 身体（5）→ 头饰（2）
+  // group 字段用于左侧分组
+  const PARTS = [
+    // 耳朵组
+    { group: 'ear', id: 'left_ear_outer',  icon: '👂', label: '左耳外侧',  short: '左耳·外', tip: '框住左耳背面（深色毛发区域）' },
+    { group: 'ear', id: 'right_ear_outer', icon: '👂', label: '右耳外侧',  short: '右耳·外', tip: '框住右耳背面' },
+    { group: 'ear', id: 'left_ear_inner',  icon: '🩷', label: '左耳内侧',  short: '左耳·内', tip: '框住左耳内粉嫩区域' },
+    { group: 'ear', id: 'right_ear_inner', icon: '🩷', label: '右耳内侧',  short: '右耳·内', tip: '框住右耳内粉嫩区域' },
+
+    // 眼睛组（4 块：左眼白 + 右眼白 + 左瞳孔 + 右瞳孔）
+    { group: 'eye', id: 'left_eye_white',  icon: '👁', label: '左眼（含眼睑）',  short: '左眼·整体', tip: '框住整只左眼——眼白 + 瞳孔 + 上下眼睑一起' },
+    { group: 'eye', id: 'right_eye_white', icon: '👁', label: '右眼（含眼睑）',  short: '右眼·整体', tip: '框住整只右眼——眼白 + 瞳孔 + 上下眼睑一起' },
+    { group: 'eye', id: 'left_eye_pupil',  icon: '⚫', label: '左瞳孔（黑珠）', short: '左瞳孔', tip: '框住左眼**最中间的黑色/深色瞳孔**（不包括眼白）' },
+    { group: 'eye', id: 'right_eye_pupil', icon: '⚫', label: '右瞳孔（黑珠）', short: '右瞳孔', tip: '框住右眼**最中间的黑色/深色瞳孔**（不包括眼白）' },
+
+    // 鼻嘴
+    { group: 'face', id: 'nose',            icon: '👃', label: '鼻子',  short: '鼻子', tip: '框住三角形的小鼻子' },
+    { group: 'face', id: 'mouth',           icon: '👄', label: '嘴巴',  short: '嘴巴', tip: '框住上下唇' },
+
+    // 身体组
+    { group: 'body', id: 'body_main',       icon: '🐱', label: '身体主色',  short: '身体', tip: '框住整个躯干（不含尾巴、四肢）' },
+    { group: 'body', id: 'chest_belly',     icon: '🤍', label: '胸腹',      short: '胸腹', tip: '框住浅色腹部（如没有就跳过）' },
+    { group: 'body', id: 'tail_main',       icon: '🐈', label: '尾巴',      short: '尾巴', tip: '框住整条尾巴（不含尾尖）' },
+    { group: 'body', id: 'paw_front',       icon: '🐾', label: '前爪',      short: '前爪', tip: '框住前爪（肉垫区域）' },
+    { group: 'body', id: 'paw_back',        icon: '🐾', label: '后爪',      short: '后爪', tip: '框住后爪（肉垫区域）' },
+
+    // 头饰/花纹
+    { group: 'pattern', id: 'forehead_pattern', icon: '✨', label: '额头花纹', short: '额头M', tip: '框住虎斑"M"字（没有就跳过）' },
+    { group: 'pattern', id: 'whiskers',     icon: '〰️', label: '胡须',      short: '胡须', tip: '框住脸颊两侧的胡须（细线）' },
+
+    // 高光（可选）
+    { group: 'highlight', id: 'left_eye_highlight',  icon: '✨', label: '左眼高光', short: '左眼高光', tip: '框住左瞳孔上的小白点（反光，可选）' },
+    { group: 'highlight', id: 'right_eye_highlight', icon: '✨', label: '右眼高光', short: '右眼高光', tip: '框住右瞳孔上的小白点（反光，可选）' },
+  ];
+
+  const GROUPS = [
+    { id: 'ear',      title: '👂 耳朵 (4)',  hint: '耳朵外侧是深色毛发，内侧是粉嫩皮肤' },
+    { id: 'eye',      title: '👁 眼睛 (4)',  hint: '先框整只眼（含眼睑），再单独框瞳孔' },
+    { id: 'face',     title: '👃 鼻嘴 (2)',  hint: '鼻子是三角形，嘴巴是上下唇' },
+    { id: 'body',     title: '🐱 身体 (5)',  hint: '躯干、四肢、尾巴' },
+    { id: 'pattern',  title: '✨ 花纹 (2)',  hint: '额头虎斑 M 字、胡须' },
+    { id: 'highlight',title: '✨ 高光 (2)',  hint: '瞳孔上的小白点（可选）' },
+  ];
+
+  // ====== 部位参考 SVG（猫身体轮廓 + 高亮当前部位） ======
+  // viewBox: 0 0 400 500
+  // 猫身体轮廓：(200, 80) 头 → (130, 30) 左耳尖 → (160, 60) 左耳根 → (200, 80) → (240, 60) 右耳根 → (270, 30) 右耳尖 → 头 → 身体 → 腿 → 尾
+  const CAT_OUTLINE_SVG = `<svg class="reference-svg" viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="bodyGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#3a3f4a"/>
+        <stop offset="1" stop-color="#2a2f37"/>
+      </linearGradient>
+    </defs>
+    <!-- 猫身体 -->
+    <g fill="url(#bodyGrad)" stroke="#5a6478" stroke-width="1.5" stroke-linejoin="round">
+      <!-- 左耳 -->
+      <path id="leftEar" d="M 130 50 L 150 130 L 175 110 Z"/>
+      <!-- 右耳 -->
+      <path id="rightEar" d="M 270 50 L 250 130 L 225 110 Z"/>
+      <!-- 头 -->
+      <ellipse id="head" cx="200" cy="170" rx="100" ry="90"/>
+      <!-- 身体 -->
+      <ellipse id="body" cx="200" cy="340" rx="110" ry="100"/>
+      <!-- 尾巴 -->
+      <path id="tail" d="M 310 280 Q 380 250, 370 200 Q 360 170, 320 220" fill="none" stroke="#5a6478" stroke-width="22" stroke-linecap="round"/>
+      <!-- 前爪 -->
+      <ellipse id="pawF" cx="155" cy="430" rx="22" ry="14"/>
+      <ellipse id="pawF2" cx="245" cy="430" rx="22" ry="14"/>
+    </g>
+    <!-- 眼睛 -->
+    <ellipse id="leftEye" cx="165" cy="160" rx="20" ry="18" fill="#76a8ff" stroke="#118ab2" stroke-width="1.5"/>
+    <ellipse id="rightEye" cx="235" cy="160" rx="20" ry="18" fill="#76a8ff" stroke="#118ab2" stroke-width="1.5"/>
+    <!-- 瞳孔 -->
+    <ellipse id="leftPupil" cx="165" cy="160" rx="4" ry="12" fill="#1a1a2e"/>
+    <ellipse id="rightPupil" cx="235" cy="160" rx="4" ry="12" fill="#1a1a2e"/>
+    <!-- 鼻子嘴 -->
+    <path id="nose" d="M 195 200 L 205 200 L 200 213 Z" fill="#ff8fa3" stroke="#a0455a" stroke-width="1"/>
+    <path id="mouth" d="M 200 213 Q 188 225, 180 220 M 200 213 Q 212 225, 220 220" fill="none" stroke="#a0455a" stroke-width="1.5"/>
+    <!-- 标签 -->
+    <g fill="#9eb6d3" font-size="10" font-family="sans-serif" text-anchor="middle">
+      <text x="148" y="50">👂</text>
+      <text x="252" y="50">👂</text>
+    </g>
+  </svg>`;
+
+  function getHighlightedSVG(partId) {
+    // 在猫轮廓 SVG 基础上，把对应部位高亮
+    const inner = CAT_OUTLINE_SVG
+      .replace('<svg class="reference-svg" viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">', '')
+      .replace('</svg>', '');
+
+    const highlights = {
+      'left_ear_outer':  ['id="leftEar"'],
+      'right_ear_outer': ['id="rightEar"'],
+      'left_ear_inner':  ['id="leftEar"'],
+      'right_ear_inner': ['id="rightEar"'],
+      'left_eye_white':  ['id="leftEye"'],
+      'right_eye_white': ['id="rightEye"'],
+      'left_eye_pupil':  ['id="leftPupil"'],
+      'right_eye_pupil': ['id="rightPupil"'],
+      'nose':            ['id="nose"'],
+      'mouth':           ['id="mouth"'],
+      'body_main':       ['id="body"'],
+      'chest_belly':     ['id="body"'],
+      'tail_main':       ['id="tail"'],
+      'paw_front':       ['id="pawF"', 'id="pawF2"'],
+      'paw_back':        ['id="pawF"', 'id="pawF2"'],
+      'forehead_pattern':['id="head"'],
+      'whiskers':        ['id="head"'],
+      'left_eye_highlight':['id="leftEye"'],
+      'right_eye_highlight':['id="rightEye"'],
+    };
+
+    let modified = inner;
+    const ids = highlights[partId] || ['id="head"'];
+    for (const sel of ids) {
+      const id = sel.match(/id="(\w+)"/)[1];
+      // 给这个元素加 ref-highlight class
+      modified = modified.replace(
+        new RegExp(`(id="${id}"[^>]*)`),
+        '$1 class="ref-highlight"'
+      );
+    }
+    return `<svg class="reference-svg" viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">${modified}</svg>`;
+  }
+
+  // ====== 状态 ======
+  const state = {
+    modelId: 'hijiki',
+    currentIdx: 0,
+    regions: {},
+    selectedId: null,
+    displayMode: 'rect',
+    drawing: false,
+    drawStart: null,
+    drawCurrent: null,
+    drawRectEl: null,
+    dragMode: null,
+    resizeHandle: null,
+    dragOrigin: null,
+    dragStartBox: null,
+    shiftHeld: false,
+    altHeld: false,
+  };
+
+  // 灵敏度调低
+  const MIN_DRAW_SIZE = 30;  // ← 从 5 改为 30，告别"灵敏度高得吓人"
+
+  // ====== DOM ======
+  const $ = id => document.getElementById(id);
+  const canvasHost = $('canvas-host');
+  const overlayLayer = $('overlay-layer');
+  const img = $('texture-img');
+  const hiddenCanvas = $('hidden-canvas');
+  const partList = $('partList');
+  const jsonPreview = $('jsonPreview');
+  const referenceContainer = $('referenceContainer');
+
+  function getColor(id) {
+    if (id.startsWith('left')) return '#06d6a0';
+    if (id.startsWith('right')) return '#ef476f';
+    if (id.includes('pupil')) return '#1a1a2e';
+    if (id.includes('eye')) return '#118ab2';
+    if (id.includes('pattern') || id.includes('whisker') || id.includes('highlight')) return '#c084fc';
+    return '#ffd166';
+  }
+
+  function toast(msg, type = '') {
+    const el = $('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (type === 'warn' ? ' warn' : '');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => el.className = 'toast', 1500);
+  }
+
+  function loadTexture(model) {
+    state.modelId = model;
+    img.src = `/models/free-cats/${model === 'hijiki' ? 'Hijiki' : 'Tororo'}/moc/${model}.2048/texture_00.png`;
+    $('modelHijiki').style.cssText = model === 'hijiki' ? 'background:#06d6a0;border-color:#06d6a0;color:#1a1a2e;font-weight:600;' : '';
+    $('modelTororo').style.cssText = model === 'tororo' ? 'background:#06d6a0;border-color:#06d6a0;color:#1a1a2e;font-weight:600;' : '';
+  }
+  loadTexture('hijiki');
+
+  img.onload = () => {
+    hiddenCanvas.width = img.naturalWidth;
+    hiddenCanvas.height = img.naturalHeight;
+    hiddenCanvas.getContext('2d').drawImage(img, 0, 0);
+    renderAll();
+  };
+
+  $('modelHijiki').onclick = () => switchModel('hijiki');
+  $('modelTororo').onclick = () => switchModel('tororo');
+  function switchModel(m) {
+    if (Object.keys(state.regions).length > 0 && !confirm('切换会清空标注，确定？')) return;
+    state.regions = {};
+    state.currentIdx = 0;
+    state.selectedId = null;
+    loadTexture(m);
+  }
+
+  document.querySelectorAll('.canvas-mode-switch button').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.canvas-mode-switch button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.displayMode = { modeRect: 'rect', modeMask: 'mask', modeBoth: 'both' }[btn.id];
+      renderAll();
+    };
+  });
+
+  // ====== Mask 提取 ======
+  function extractMask(ax, ay, aw, ah) {
+    const ctx = hiddenCanvas.getContext('2d');
+    const imageData = ctx.getImageData(ax, ay, aw, ah);
+    const { width, height, data } = imageData;
+    const mask = new Uint8Array(width * height);
+    let pixelCount = 0;
+    for (let i = 0; i < width * height; i++) {
+      if (data[i * 4 + 3] > 30) { mask[i] = 1; pixelCount++; }
+    }
+    const edges = new Uint8Array(width * height);
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = y * width + x;
+        if (mask[idx] === 1 && (mask[idx-1] === 0 || mask[idx+1] === 0 ||
+            mask[idx-width] === 0 || mask[idx+width] === 0)) edges[idx] = 1;
+      }
+    }
+    const edgePoints = [];
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (edges[y * width + x] === 1) edgePoints.push([x, y]);
+      }
+    }
+    const sampleInterval = Math.max(1, Math.floor(edgePoints.length / 80));
+    let simplified = [];
+    for (let i = 0; i < edgePoints.length; i += sampleInterval) simplified.push(edgePoints[i]);
+    if (simplified.length > 100) simplified = simplified.filter((_, i) => i % Math.ceil(simplified.length / 100) === 0);
+    let svgPath = '';
+    if (simplified.length > 0) {
+      svgPath = `M ${simplified[0][0]} ${simplified[0][1]}`;
+      for (let i = 1; i < simplified.length; i++) svgPath += ` L ${simplified[i][0]} ${simplified[i][1]}`;
+      svgPath += ' Z';
+    }
+    const maskCanvas = document.createElement('canvas');
+    maskCanvas.width = width; maskCanvas.height = height;
+    const mctx = maskCanvas.getContext('2d');
+    const mid = mctx.createImageData(width, height);
+    for (let i = 0; i < width * height; i++) {
+      const v = mask[i] * 255;
+      mid.data[i*4] = v; mid.data[i*4+1] = v; mid.data[i*4+2] = v; mid.data[i*4+3] = 255;
+    }
+    mctx.putImageData(mid, 0, 0);
+    return {
+      coverage: (pixelCount / (width * height)).toFixed(4),
+      pixelCount,
+      maskSvg: svgPath,
+      maskBase64: maskCanvas.toDataURL('image/png').split(',')[1],
+      pointCount: simplified.length,
+      maskWidth: width, maskHeight: height
+    };
+  }
+
+  // ====== 渲染 ======
+  function renderAll() {
+    renderPartList();
+    renderProgress();
+    renderCurrentTask();
+    renderReference();
+    renderOverlays();
+    renderJSON();
+    if (state.selectedId) showPreview(state.selectedId);
+  }
+
+  function renderPartList() {
+    partList.innerHTML = '';
+    const grouped = {};
+    PARTS.forEach((p, i) => {
+      if (!grouped[p.group]) grouped[p.group] = [];
+      grouped[p.group].push({ p, i });
+    });
+
+    GROUPS.forEach(g => {
+      const groupDiv = document.createElement('div');
+      groupDiv.className = 'part-group';
+      const titleDiv = document.createElement('div');
+      titleDiv.className = 'part-group-title';
+      titleDiv.textContent = g.title;
+      groupDiv.appendChild(titleDiv);
+      const hintDiv = document.createElement('div');
+      hintDiv.className = 'part-group-title';
+      hintDiv.style.cssText = 'font-size:9px;color:#666;text-transform:none;letter-spacing:0;padding:0 10px 4px;';
+      hintDiv.textContent = g.hint;
+      groupDiv.appendChild(hintDiv);
+
+      (grouped[g.id] || []).forEach(({ p, i }) => {
+        const div = document.createElement('div');
+        const done = !!state.regions[p.id];
+        const isCurrent = !done && i === state.currentIdx;
+        const isSelected = state.selectedId === p.id;
+        div.className = 'part-item';
+        if (done) div.classList.add('done');
+        if (isCurrent) div.classList.add('active');
+        if (isSelected) div.classList.add('selected');
+        div.style.borderLeftColor = done ? getColor(p.id) : (isCurrent ? '#ffd166' : 'transparent');
+        div.innerHTML = `
+          <span class="icon">${p.icon}</span>
+          <span class="label-text">${p.label} <span class="sub">(${p.short})</span></span>
+          <span class="status ${done ? 'done' : (isCurrent ? 'current' : 'pending')}">
+            ${done ? '✓' : (isCurrent ? '▶' : '○')}
+          </span>
+        `;
+        div.onclick = () => {
+          state.currentIdx = i;
+          state.selectedId = done ? p.id : null;
+          renderAll();
+        };
+        groupDiv.appendChild(div);
+      });
+      partList.appendChild(groupDiv);
+    });
+  }
+
+  function renderProgress() {
+    const total = PARTS.length;
+    const done = Object.keys(state.regions).length;
+    $('progressFill').style.width = (done/total*100) + '%';
+    $('progressText').textContent = `${done} / ${total}`;
+  }
+
+  function renderCurrentTask() {
+    const part = PARTS[state.currentIdx];
+    if (!part) return;
+    const done = !!state.regions[part.id];
+    $('stepNo').textContent = done ? `已完成` : `第 ${state.currentIdx + 1} 步`;
+    $('taskTitle').textContent = `${part.icon} ${part.label}`;
+    $('taskDesc').textContent = part.tip;
+    $('taskHint').innerHTML = done
+      ? '💡 <b>已标注</b>。可点击画布中的框调整，或按 Delete 删除。'
+      : `💡 <b>画框</b>：按住左键拖动（<b>至少 ${MIN_DRAW_SIZE}px</b>）<br>完成自动跳到下一步`;
+  }
+
+  function renderReference() {
+    const part = PARTS[state.currentIdx];
+    if (!part) { referenceContainer.innerHTML = ''; return; }
+    referenceContainer.innerHTML = getHighlightedSVG(part.id);
+  }
+
+  function renderJSON() {
+    const summary = {};
+    Object.entries(state.regions).forEach(([id, d]) => {
+      summary[id] = { x: d.x, y: d.y, w: d.w, h: d.h, coverage: d.coverage, pixelCount: d.pixelCount };
+    });
+    jsonPreview.textContent = JSON.stringify({
+      model_id: `cat_base_${state.modelId}_v1`,
+      atlas_size: [2048, 2048],
+      regions: summary
+    }, null, 2);
+  }
+
+  function renderOverlays() {
+    overlayLayer.innerHTML = '';
+    const imgRect = img.getBoundingClientRect();
+    const hostRect = canvasHost.getBoundingClientRect();
+    const scaleX = imgRect.width / img.naturalWidth;
+    const scaleY = imgRect.height / img.naturalHeight;
+    const offsetX = imgRect.left - hostRect.left + canvasHost.scrollLeft;
+    const offsetY = imgRect.top - hostRect.top + canvasHost.scrollTop;
+
+    Object.entries(state.regions).forEach(([id, box]) => {
+      const part = PARTS.find(p => p.id === id);
+      if (!part) return;
+      const color = getColor(id);
+      const isSelected = state.selectedId === id;
+      const showAsRect = state.displayMode === 'rect' || state.displayMode === 'both';
+      const showAsMask = state.displayMode === 'mask' || state.displayMode === 'both';
+
+      const wrap = document.createElement('div');
+      wrap.className = 'region-rect' + (isSelected ? '' : ' unselected');
+      wrap.dataset.id = id;
+      wrap.style.left = (offsetX + box.x * scaleX) + 'px';
+      wrap.style.top = (offsetY + box.y * scaleY) + 'px';
+      wrap.style.width = (box.w * scaleX) + 'px';
+      wrap.style.height = (box.h * scaleY) + 'px';
+
+      if (showAsRect) {
+        const frame = document.createElement('div');
+        frame.className = 'frame';
+        frame.style.borderColor = color;
+        frame.style.boxShadow = isSelected
+          ? `0 0 0 1px rgba(0,0,0,0.5), 0 0 12px ${color}88`
+          : `0 0 0 1px rgba(0,0,0,0.3)`;
+        wrap.appendChild(frame);
+      }
+      if (showAsMask && box.maskSvg) {
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(svgNS, 'svg');
+        svg.setAttribute('viewBox', `0 0 ${box.maskWidth} ${box.maskHeight}`);
+        svg.style.cssText = `position:absolute;inset:0;pointer-events:none;`;
+        const path = document.createElementNS(svgNS, 'path');
+        path.setAttribute('d', box.maskSvg);
+        path.setAttribute('fill', color);
+        path.setAttribute('fill-opacity', isSelected ? '0.5' : '0.3');
+        path.setAttribute('stroke', color);
+        path.setAttribute('stroke-width', '2');
+        svg.appendChild(path);
+        wrap.appendChild(svg);
+      }
+
+      const label = document.createElement('div');
+      label.className = 'label';
+      label.style.backgroundColor = color;
+      label.textContent = `${part.icon} ${part.short}`;
+      wrap.appendChild(label);
+
+      if (isSelected) {
+        const sizeTag = document.createElement('div');
+        sizeTag.className = 'size-tag';
+        sizeTag.textContent = `${box.w} × ${box.h}`;
+        wrap.appendChild(sizeTag);
+      }
+
+      if (isSelected) {
+        ['tl','tr','bl','br','t','b','l','r'].forEach(pos => {
+          const h = document.createElement('div');
+          h.className = 'handle ' + pos;
+          h.dataset.handle = pos;
+          wrap.appendChild(h);
+        });
+        const move = document.createElement('div');
+        move.className = 'move-overlay';
+        wrap.appendChild(move);
+      }
+
+      overlayLayer.appendChild(wrap);
+    });
+  }
+
+  // ====== 鼠标交互（不再有"矫正框"） ======
+  function getMouseImgPos(e) {
+    const imgRect = img.getBoundingClientRect();
+    const hostRect = canvasHost.getBoundingClientRect();
+    const scaleX = img.naturalWidth / imgRect.width;
+    const scaleY = img.naturalHeight / imgRect.height;
+    const sx = e.clientX - hostRect.left + canvasHost.scrollLeft - (imgRect.left - hostRect.left);
+    const sy = e.clientY - hostRect.top + canvasHost.scrollTop - (imgRect.top - hostRect.top);
+    return { x: sx * scaleX, y: sy * scaleY, scaleX, scaleY };
+  }
+  function getMouseScreenPos(e) {
+    const hostRect = canvasHost.getBoundingClientRect();
+    return { x: e.clientX - hostRect.left + canvasHost.scrollLeft, y: e.clientY - hostRect.top + canvasHost.scrollTop };
+  }
+
+  overlayLayer.addEventListener('mousedown', (e) => {
+    const handleEl = e.target.closest('.handle');
+    const moveEl = e.target.closest('.move-overlay');
+    const rectEl = e.target.closest('.region-rect');
+
+    if (handleEl) {
+      e.preventDefault(); e.stopPropagation();
+      const id = rectEl.dataset.id;
+      state.selectedId = id;
+      state.dragMode = 'resize';
+      state.resizeHandle = handleEl.dataset.handle;
+      state.dragOrigin = getMouseImgPos(e);
+      state.dragStartBox = { ...state.regions[id] };
+      renderOverlays();
+      return;
+    }
+    if (moveEl || rectEl) {
+      e.preventDefault(); e.stopPropagation();
+      const id = rectEl.dataset.id;
+      state.selectedId = id;
+      state.dragMode = 'move';
+      state.dragOrigin = getMouseImgPos(e);
+      state.dragStartBox = { ...state.regions[id] };
+      renderOverlays();
+      return;
+    }
+  });
+
+  canvasHost.addEventListener('mousedown', (e) => {
+    if (e.target.closest('.region-rect')) return;
+    if (e.target !== img && e.target !== canvasHost && e.target !== overlayLayer) return;
+
+    const part = PARTS[state.currentIdx];
+    if (!part || state.regions[part.id]) return;
+
+    state.drawing = true;
+    state.drawStart = getMouseScreenPos(e);
+    state.dragOrigin = getMouseImgPos(e);
+    state.drawRectEl = document.createElement('div');
+    state.drawRectEl.className = 'drawing-rect';
+    state.drawRectEl.style.left = state.drawStart.x + 'px';
+    state.drawRectEl.style.top = state.drawStart.y + 'px';
+    state.drawRectEl.style.width = '0';
+    state.drawRectEl.style.height = '0';
+    state.drawRectEl.innerHTML = '<div class="live-size">0 × 0</div>';
+    overlayLayer.appendChild(state.drawRectEl);
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (state.drawing) {
+      const cur = getMouseScreenPos(e);
+      const curImg = getMouseImgPos(e);
+      let dx = curImg.x - state.dragOrigin.x;
+      let dy = curImg.y - state.dragOrigin.y;
+
+      if (state.shiftHeld) {
+        const m = Math.max(Math.abs(dx), Math.abs(dy));
+        dx = Math.sign(dx) * m;
+        dy = Math.sign(dy) * m;
+      }
+
+      const x1 = state.drawStart.x + (dx < 0 ? dx : 0);
+      const y1 = state.drawStart.y + (dy < 0 ? dy : 0);
+      const w = Math.abs(dx);
+      const h = Math.abs(dy);
+
+      state.drawRectEl.style.left = x1 + 'px';
+      state.drawRectEl.style.top = y1 + 'px';
+      state.drawRectEl.style.width = w + 'px';
+      state.drawRectEl.style.height = h + 'px';
+
+      const scaleX = img.naturalWidth / img.getBoundingClientRect().width;
+      const scaleY = img.naturalHeight / img.getBoundingClientRect().height;
+      state.drawRectEl.querySelector('.live-size').textContent = `${Math.round(w * scaleX)} × ${Math.round(h * scaleY)}`;
+
+      state.drawCurrent = {
+        x1: state.dragOrigin.x + Math.min(0, dx),
+        y1: state.dragOrigin.y + Math.min(0, dy),
+        x2: state.dragOrigin.x + Math.max(0, dx),
+        y2: state.dragOrigin.y + Math.max(0, dy)
+      };
+      return;
+    }
+
+    if (state.dragMode === 'move' && state.selectedId) {
+      const cur = getMouseImgPos(e);
+      const dx = cur.x - state.dragOrigin.x;
+      const dy = cur.y - state.dragOrigin.y;
+      const box = state.dragStartBox;
+      state.regions[state.selectedId] = {
+        ...box,
+        x: Math.max(0, Math.min(img.naturalWidth - box.w, Math.round(box.x + dx))),
+        y: Math.max(0, Math.min(img.naturalHeight - box.h, Math.round(box.y + dy)))
+      };
+      renderOverlays();
+      renderJSON();
+      return;
+    }
+
+    if (state.dragMode === 'resize' && state.selectedId) {
+      const cur = getMouseImgPos(e);
+      const dx = cur.x - state.dragOrigin.x;
+      const dy = cur.y - state.dragOrigin.y;
+      const sb = state.dragStartBox;
+      let { x, y, w, h } = sb;
+      const h_ = state.resizeHandle;
+
+      if (h_.includes('l')) { x = sb.x + dx; w = sb.w - dx; }
+      if (h_.includes('r')) { w = sb.w + dx; }
+      if (h_.includes('t')) { y = sb.y + dy; h = sb.h - dy; }
+      if (h_.includes('b')) { h = sb.h + dy; }
+
+      if (w < 10) { w = 10; if (h_.includes('l')) x = sb.x + sb.w - 10; }
+      if (h < 10) { h = 10; if (h_.includes('t')) y = sb.y + sb.h - 10; }
+      x = Math.max(0, x); y = Math.max(0, y);
+      if (x + w > img.naturalWidth) w = img.naturalWidth - x;
+      if (y + h > img.naturalHeight) h = img.naturalHeight - y;
+
+      state.regions[state.selectedId] = {
+        ...state.regions[state.selectedId],
+        x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h)
+      };
+      renderOverlays();
+      renderJSON();
+      return;
+    }
+  });
+
+  document.addEventListener('mouseup', (e) => {
+    if (state.drawing) {
+      state.drawing = false;
+      const part = PARTS[state.currentIdx];
+      const d = state.drawCurrent;
+      state.drawRectEl.remove();
+      state.drawRectEl = null;
+
+      if (!d || !part) return;
+
+      const scaleX = img.naturalWidth / img.getBoundingClientRect().width;
+      const scaleY = img.naturalHeight / img.getBoundingClientRect().height;
+
+      let ax = Math.round(Math.min(d.x1, d.x2));
+      let ay = Math.round(Math.min(d.y1, d.y2));
+      let aw = Math.round(Math.abs(d.x2 - d.x1));
+      let ah = Math.round(Math.abs(d.y2 - d.y1));
+
+      // ====== 关键修改：灵敏度从 5 → 30 ======
+      if (aw < MIN_DRAW_SIZE || ah < MIN_DRAW_SIZE) {
+        toast(`框太小了（小于 ${MIN_DRAW_SIZE}px），请重新框`, 'warn');
+        return;
+      }
+
+      const maskData = extractMask(ax, ay, aw, ah);
+      state.regions[part.id] = { x: ax, y: ay, w: aw, h: ah, ...maskData };
+      state.selectedId = part.id;
+      showPreview(part.id);
+      if (state.currentIdx < PARTS.length - 1) state.currentIdx++;
+      toast(`✓ ${part.label} 已标注`);
+      renderAll();
+      checkComplete();
+      return;
+    }
+    if (state.dragMode) {
+      if (state.dragMode === 'resize' && state.selectedId) {
+        const r = state.regions[state.selectedId];
+        const newMask = extractMask(r.x, r.y, r.w, r.h);
+        state.regions[state.selectedId] = { ...r, ...newMask };
+        showPreview(state.selectedId);
+      }
+      if (state.dragMode === 'move' && state.selectedId) {
+        const r = state.regions[state.selectedId];
+        const newMask = extractMask(r.x, r.y, r.w, r.h);
+        state.regions[state.selectedId] = { ...r, ...newMask };
+        showPreview(state.selectedId);
+      }
+      state.dragMode = null;
+      renderAll();
+    }
+  });
+
+  // ====== 键盘快捷键 ======
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Shift') state.shiftHeld = true;
+    if (e.key === 'Alt') state.altHeld = true;
+    if (e.key === 'Enter') { $('btnConfirm').click(); }
+    if (e.key === 'Escape') {
+      if (state.drawing) { state.drawRectEl?.remove(); state.drawing = false; }
+    }
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (state.selectedId && state.regions[state.selectedId]) {
+        delete state.regions[state.selectedId];
+        state.selectedId = null;
+        $('previewBox').style.display = 'none';
+        toast('已删除');
+        renderAll();
+      }
+    }
+    if (e.key === 'ArrowLeft' && state.currentIdx > 0) { state.currentIdx--; renderAll(); }
+    if (e.key === 'ArrowRight' && state.currentIdx < PARTS.length - 1) { state.currentIdx++; renderAll(); }
+  });
+  document.addEventListener('keyup', (e) => {
+    if (e.key === 'Shift') state.shiftHeld = false;
+    if (e.key === 'Alt') state.altHeld = false;
+  });
+
+  // ====== 预览 ======
+  function showPreview(partId) {
+    const data = state.regions[partId];
+    if (!data) { $('previewBox').style.display = 'none'; return; }
+    $('previewBox').style.display = 'block';
+    const part = PARTS.find(p => p.id === partId);
+    $('previewTitle').textContent = part.label;
+
+    const oc = document.createElement('canvas');
+    oc.width = data.w; oc.height = data.h;
+    oc.getContext('2d').drawImage(img, data.x, data.y, data.w, data.h, 0, 0, data.w, data.h);
+    $('prevOriginal').src = oc.toDataURL();
+
+    $('prevMask').src = 'data:image/png;base64,' + data.maskBase64;
+
+    const ovc = document.createElement('canvas');
+    ovc.width = data.w; ovc.height = data.h;
+    const octx = ovc.getContext('2d');
+    octx.drawImage(oc, 0, 0);
+    octx.globalCompositeOperation = 'source-atop';
+    octx.fillStyle = 'rgba(255, 209, 102, 0.7)';
+    octx.fillRect(0, 0, data.w, data.h);
+    $('prevOverlay').src = ovc.toDataURL();
+
+    $('maskStats').textContent = `覆盖率 ${(data.coverage*100).toFixed(1)}% · ${data.pixelCount.toLocaleString()} 像素`;
+  }
+
+  // ====== 按钮 ======
+  $('btnConfirm').onclick = () => {
+    const part = PARTS[state.currentIdx];
+    if (state.regions[part.id]) {
+      toast(`✓ ${part.label} 确认`);
+      state.selectedId = null;
+      if (state.currentIdx < PARTS.length - 1) state.currentIdx++;
+      renderAll();
+    } else {
+      toast('请先画一个框', 'warn');
+    }
+  };
+  $('btnRedo').onclick = () => {
+    const part = PARTS[state.currentIdx];
+    if (state.regions[part.id]) {
+      delete state.regions[part.id];
+      state.selectedId = null;
+      $('previewBox').style.display = 'none';
+      toast('已重置当前部位');
+      renderAll();
+    }
+  };
+  $('btnSkip').onclick = () => {
+    if (state.currentIdx < PARTS.length - 1) {
+      state.currentIdx++;
+      state.selectedId = null;
+      renderAll();
+    }
+  };
+  $('btnExport').onclick = () => {
+    const full = {};
+    Object.entries(state.regions).forEach(([id, d]) => {
+      full[id] = {
+        x: d.x, y: d.y, w: d.w, h: d.h,
+        mask: {
+          coverage: parseFloat(d.coverage),
+          pixelCount: d.pixelCount,
+          pointCount: d.pointCount,
+          maskWidth: d.maskWidth, maskHeight: d.maskHeight,
+          maskSvg: d.maskSvg, maskBase64: d.maskBase64
+        }
+      };
+    });
+    const json = {
+      model_id: `cat_base_${state.modelId}_v1`,
+      atlas_size: [2048, 2048],
+      regions: full
+    };
+    const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'atlas_region_map.json'; a.click();
+    URL.revokeObjectURL(url);
+    toast('JSON 已下载');
+  };
+
+  function checkComplete() {
+    const done = Object.keys(state.regions).length;
+    if (done >= PARTS.length) {
+      $('btnExport').style.display = 'block';
+      $('congrats').classList.add('show');
+    } else if (done >= 8) {
+      $('btnExport').style.display = 'block';
+    }
+  }
+
+  renderAll();
+</script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+{
+  "$schema": "live2d-part-registry/v1",
+  "source": "Direct binary string extraction from .moc (Cubism 2.1, single-byte alnum + _ per spec)",
+  "extractedAt": "2026-07-02",
+  "cubismVersion": "2.1",
+  "models": {
+    "hijiki": {
+      "displayName": "黑猫 Hijiki",
+      "mocPath": "models/free-cats/Hijiki/moc/hijiki.moc",
+      "texturePath": "models/free-cats/Hijiki/moc/hijiki.2048/texture_00.png",
+      "counts": { "parts": 17, "drawables": 13, "params": 30, "deformers": 14 },
+      "parts": [
+        { "id": "PARTS_01_ARM_L",       "zh": "左前爪·前层",  "short": "L爪·前", "optional": false },
+        { "id": "PARTS_01_ARM_L_02",    "zh": "左前爪·后层",  "short": "L爪·后", "optional": false },
+        { "id": "PARTS_01_ARM_R",       "zh": "右前爪·前层",  "short": "R爪·前", "optional": false },
+        { "id": "PARTS_01_ARM_R_02",    "zh": "右前爪·后层",  "short": "R爪·后", "optional": false },
+        { "id": "PARTS_01_BACKGROUND",  "zh": "背景",         "short": "背景",   "optional": true },
+        { "id": "PARTS_01_BODY",        "zh": "身体",         "short": "身体",   "optional": false },
+        { "id": "PARTS_01_BROW_001",    "zh": "眉毛",         "short": "眉",     "optional": true },
+        { "id": "PARTS_01_CHEST",       "zh": "胸/腹",        "short": "胸",     "optional": true },
+        { "id": "PARTS_01_CORE_001",    "zh": "脸/核心",      "short": "脸·核",  "optional": false },
+        { "id": "PARTS_01_EAR_001",     "zh": "耳朵",         "short": "耳",     "optional": false },
+        { "id": "PARTS_01_EYE_001",     "zh": "眼睛·整",      "short": "眼·整",  "optional": false },
+        { "id": "PARTS_01_EYE_BALL_001","zh": "眼球/瞳孔",     "short": "瞳孔",   "optional": false },
+        { "id": "PARTS_01_FACE_001",    "zh": "脸部底色",     "short": "脸·底",  "optional": true },
+        { "id": "PARTS_01_MOUTH_001",   "zh": "嘴",           "short": "嘴",     "optional": false },
+        { "id": "PARTS_01_NOSE_001",    "zh": "鼻子",         "short": "鼻",     "optional": false },
+        { "id": "PARTS_01_SKETCH",      "zh": "描边/线条",     "short": "描边",   "optional": true },
+        { "id": "PARTS_01_TAIL",        "zh": "尾巴",         "short": "尾",     "optional": false }
+      ],
+      "params": [
+        "PARAM_ANGLE_X","PARAM_ANGLE_Y","PARAM_ANGLE_Z",
+        "PARAM_ARM_L","PARAM_ARM_R_MOVE","PARAM_BIG_FACE",
+        "PARAM_BLOW_L","PARAM_BLOW_R","PARAM_BODY",
+        "PARAM_BODY_ANGLE_X","PARAM_BODY_ANGLE_Y","PARAM_BREATH",
+        "PARAM_EAR_L","PARAM_EAR_R","PARAM_EAR_R_MOVE",
+        "PARAM_EYE_BALL_X","PARAM_EYE_BALL_Y","PARAM_EYE_FORM",
+        "PARAM_EYE_L_OPEN","PARAM_EYE_R_OPEN",
+        "PARAM_HAND_L","PARAM_HAND_L_MOVE","PARAM_HAND_R",
+        "PARAM_MOUTH_FORM","PARAM_MOUTH_OPEN_Y",
+        "PARAM_MUSTACHE_FRONT_L","PARAM_MUSTACHE_FRONT_R",
+        "PARAM_TAIL","PARAM_TAIL_ANGRY","PARAM_TONGUE"
+      ]
+    },
+    "tororo": {
+      "displayName": "白猫 Tororo",
+      "mocPath": "models/free-cats/Tororo/moc/tororo.moc",
+      "texturePath": "models/free-cats/Tororo/moc/tororo.2048/texture_00.png",
+      "counts": { "parts": 17, "drawables": 13, "params": 30, "deformers": 14 },
+      "parts": [
+        { "id": "PARTS_01_ARM_L",       "zh": "左前爪·前层",  "short": "L爪·前", "optional": false },
+        { "id": "PARTS_01_ARM_L_02",    "zh": "左前爪·后层",  "short": "L爪·后", "optional": false },
+        { "id": "PARTS_01_ARM_R",       "zh": "右前爪·前层",  "short": "R爪·前", "optional": false },
+        { "id": "PARTS_01_ARM_R_02",    "zh": "右前爪·后层",  "short": "R爪·后", "optional": false },
+        { "id": "PARTS_01_BACKGROUND",  "zh": "背景",         "short": "背景",   "optional": true },
+        { "id": "PARTS_01_BODY",        "zh": "身体",         "short": "身体",   "optional": false },
+        { "id": "PARTS_01_BROW_001",    "zh": "眉毛",         "short": "眉",     "optional": true },
+        { "id": "PARTS_01_CHEST",       "zh": "胸/腹",        "short": "胸",     "optional": true },
+        { "id": "PARTS_01_CORE_001",    "zh": "脸/核心",      "short": "脸·核",  "optional": false },
+        { "id": "PARTS_01_EAR_001",     "zh": "耳朵",         "short": "耳",     "optional": false },
+        { "id": "PARTS_01_EYE_001",     "zh": "眼睛·整",      "short": "眼·整",  "optional": false },
+        { "id": "PARTS_01_EYE_BALL_001","zh": "眼球/瞳孔",     "short": "瞳孔",   "optional": false },
+        { "id": "PARTS_01_FACE_001",    "zh": "脸部底色",     "short": "脸·底",  "optional": true },
+        { "id": "PARTS_01_MOUTH_001",   "zh": "嘴",           "short": "嘴",     "optional": false },
+        { "id": "PARTS_01_NOSE_001",    "zh": "鼻子",         "short": "鼻",     "optional": false },
+        { "id": "PARTS_01_SKETCH",      "zh": "描边/线条",     "short": "描边",   "optional": true },
+        { "id": "PARTS_01_TAIL",        "zh": "尾巴",         "short": "尾",     "optional": false }
+      ],
+      "params": [
+        "PARAM_ANGLE_X","PARAM_ANGLE_Y","PARAM_ANGLE_Z",
+        "PARAM_ARM_L","PARAM_ARM_R_MOVE","PARAM_BIG_FACE",
+        "PARAM_BLOW_L","PARAM_BLOW_R","PARAM_BODY",
+        "PARAM_BODY_ANGLE_X","PARAM_BODY_ANGLE_Y","PARAM_BREATH",
+        "PARAM_EAR_L","PARAM_EAR_R","PARAM_EAR_R_MOVE",
+        "PARAM_EYE_BALL_X","PARAM_EYE_BALL_Y","PARAM_EYE_FORM",
+        "PARAM_EYE_L_OPEN","PARAM_EYE_R_OPEN",
+        "PARAM_HAND_L","PARAM_HAND_L_MOVE","PARAM_HAND_R",
+        "PARAM_MOUTH_FORM","PARAM_MOUTH_OPEN_Y",
+        "PARAM_MUSTACHE_FRONT_L","PARAM_MUSTACHE_FRONT_R",
+        "PARAM_TAIL","PARAM_TAIL_ANGRY","PARAM_TONGUE"
+      ]
+    }
+  }
+}

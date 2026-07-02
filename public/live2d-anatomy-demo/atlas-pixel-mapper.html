@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>🧬 atlas_region_map · 像素级自动生成 (PIXI版)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0d1117; color: #eee; font-family: "Cascadia Code", "Consolas", monospace; padding: 18px; }
+    h1 { color: #06d6a0; font-size: 18px; margin: 0 0 6px; }
+    .sub { color: #9eb6d3; font-size: 12px; margin-bottom: 14px; line-height: 1.6; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0; }
+    button { padding: 10px 16px; background: #161b22; border: 1px solid #30363d; color: #eee; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: inherit; }
+    button:hover { background: #21262d; }
+    button.primary { background: #06d6a0; color: #0d1117; border-color: #06d6a0; font-weight: 700; }
+    .status { padding: 12px; background: #161b22; border: 1px solid #30363d; border-radius: 6px; font-size: 12px; margin-bottom: 12px; line-height: 1.6; }
+    .status.ok { color: #06d6a0; }
+    .status.err { color: #ef476f; }
+    #gal { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-top: 14px; }
+    .gal-item { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 8px; }
+    .gal-item canvas { width: 100%; height: 220px; image-rendering: pixelated; background: repeating-conic-gradient(#0a0e14 0% 25%, #1a1f29 0% 50%) 0 0/16px 16px; border-radius: 4px; }
+    .gal-item .id { color: #ffd166; font-size: 11px; word-break: break-all; margin-top: 6px; }
+    .gal-item .info { color: #9eb6d3; font-size: 10px; margin-top: 4px; }
+    .gal-item.fail { opacity: 0.5; }
+    .gal-item.fail .id { color: #ef476f; }
+  </style>
+</head>
+<body>
+  <h1>🧬 atlas_region_map · 像素级自动生成 (PIXI版)</h1>
+  <div class="sub">
+    原理：PIXI 加载 Live2D 模型 → 逐个 <code>setPartsOpacity(id, 0)</code> 隐藏零件 → 渲染到 canvas → 对比基线像素差异 = 该零件的精确像素区域。<br>
+    <strong style="color:#06d6a0;">零人工</strong>，输出 bbox + 像素多边形，喂给 DashScope Inpaint。
+  </div>
+
+  <div class="row">
+    <button class="primary" onclick="runHijiki()">🐈‍⬛ 生成黑猫 atlas</button>
+    <button class="primary" onclick="runTororo()">🐱 生成白猫 atlas</button>
+    <button onclick="downloadLatest()">💾 下载 atlas_region_map.json</button>
+  </div>
+
+  <div id="status" class="status">⏳ 等待点击…</div>
+  <div id="gal"></div>
+
+  <script src="/live2d-anatomy-demo/lib/pixi.min.js"></script>
+  <script src="/live2d-anatomy-demo/lib/live2dcubismcore.min.js"></script>
+  <script src="/live2d-anatomy-demo/lib/pixi-live2d-display.min.js"></script>
+  <script>
+    const KNOWN_PARTS = [
+      "PARTS_01_ARM_L","PARTS_01_ARM_L_02","PARTS_01_ARM_R","PARTS_01_ARM_R_02",
+      "PARTS_01_BACKGROUND","PARTS_01_BODY","PARTS_01_BROW_001","PARTS_01_CHEST",
+      "PARTS_01_CORE_001","PARTS_01_EAR_001","PARTS_01_EYE_001","PARTS_01_EYE_BALL_001",
+      "PARTS_01_FACE_001","PARTS_01_MOUTH_001","PARTS_01_NOSE_001","PARTS_01_SKETCH","PARTS_01_TAIL"
+    ];
+
+    const ZOOM = 2;  // 画布放大倍率（更清楚像素）
+
+    function setStatus(m, c='') { const e=document.getElementById('status'); e.className='status '+c; e.innerHTML=m; }
+
+    async function generateAtlas(modelId) {
+      setStatus(`⏳ 加载 PIXI 和 ${modelId}.moc…`);
+      const gal = document.getElementById('gal'); gal.innerHTML = '';
+
+      // 创建 PIXI 离屏应用
+      const app = new PIXI.Application({
+        width: 600 * ZOOM, height: 800 * ZOOM,
+        backgroundColor: 0x000000, backgroundAlpha: 0,
+        resolution: 1, antialias: false,
+      });
+      document.body.appendChild(app.view);
+      app.view.style.display = 'none';
+
+      // 加载模型（Cubism 2.1 → Cubism 3 兼容层）
+      // 我们的 .moc 是 Cubism 2，pixi-live2d-display 默认支持 cubism 3
+      // 但通过 Live2DModel.from 可以自动转换
+      // 用 .model.json 文件让 PIXI 自动选择加载器
+      const modelUrl = `/models/free-cats/${modelId === 'hijiki' ? 'Hijiki' : 'Tororo'}/${modelId}.model.json`;
+
+      setStatus(`⏳ 加载模型 ${modelUrl}…`);
+      let model;
+      try {
+        model = await PIXI.live2d.Live2DModel.from(modelUrl);
+      } catch (e) {
+        setStatus(`❌ 加载模型失败：${e.message}<br><small>${e.stack || ''}</small>`, 'err');
+        console.error(e);
+        return;
+      }
+
+      // 适配：把模型缩放到 600x800 画布
+      const scale = Math.min((600*ZOOM) / model.width, (800*ZOOM) / model.height) * 0.9;
+      model.scale.set(scale);
+      model.x = (600*ZOOM - model.width * scale) / 2;
+      model.y = (800*ZOOM - model.height * scale) / 2;
+      app.stage.addChild(model);
+
+      // 拿到 core model 来 setPartsOpacity
+      const coreModel = model.internalModel?.coreModel;
+      if (!coreModel || typeof coreModel.setPartsOpacity !== 'function') {
+        setStatus(`❌ coreModel.setPartsOpacity 不可用`, 'err');
+        return;
+      }
+
+      // 渲染一次完整基线
+      app.render();
+      const basePixels = app.renderer.plugins.extract.pixels(app.stage);
+      const baseCanvas = app.renderer.plugins.extract.canvas(app.stage);
+
+      const regions = {};
+      let okCount = 0, failCount = 0;
+
+      for (const partId of KNOWN_PARTS) {
+        setStatus(`⏳ 探测 <code>${partId}</code> (${okCount + failCount + 1}/${KNOWN_PARTS.length})…`);
+
+        // 隐藏该零件
+        try { coreModel.setPartsOpacity(partId, 0); } catch (e) {}
+        app.render();
+
+        const maskPixels = app.renderer.plugins.extract.pixels(app.stage);
+        const maskCanvas = app.renderer.plugins.extract.canvas(app.stage);
+
+        // 找 diff bbox
+        const bb = diffBBox(basePixels, maskPixels, maskCanvas.width, maskCanvas.height);
+
+        // 缩略图
+        const tc = document.createElement('canvas'); tc.width = 240; tc.height = 220;
+        const tctx = tc.getContext('2d');
+        tctx.drawImage(maskCanvas, 0, 0, 240, 220);
+        // 叠加 diff 区域
+        if (bb) {
+          const sx = 240 / maskCanvas.width, sy = 220 / maskCanvas.height;
+          tctx.strokeStyle = '#06d6a0';
+          tctx.lineWidth = 2;
+          tctx.strokeRect(bb.x * sx, bb.y * sy, bb.w * sx, bb.h * sy);
+          tctx.fillStyle = 'rgba(6, 214, 160, 0.4)';
+          tctx.fillRect(bb.x * sx, bb.y * sy, bb.w * sx, bb.h * sy);
+        }
+
+        const item = document.createElement('div');
+        item.className = 'gal-item' + (bb ? '' : ' fail');
+        const itemHtml = `<canvas width="240" height="220"></canvas><div class="id">${partId}</div>`;
+        item.innerHTML = itemHtml;
+        item.querySelector('canvas').getContext('2d').drawImage(tc, 0, 0);
+        if (bb) {
+          item.innerHTML += `<div class="info">bbox: ${bb.x},${bb.y} ${bb.w}×${bb.h}<br>${bb.pixelCount.toLocaleString()} px</div>`;
+          regions[partId] = bb;
+          okCount++;
+        } else {
+          item.innerHTML += `<div class="info">❌ 未检测到差异</div>`;
+          regions[partId] = { hidden: true, reason: '与背景同色 / 被覆盖' };
+          failCount++;
+        }
+        gal.appendChild(item);
+
+        // 恢复
+        coreModel.setPartsOpacity(partId, 1);
+      }
+
+      // 销毁 PIXI
+      app.destroy(true, { children: true, texture: true });
+
+      const result = {
+        model: modelId,
+        texture: { width: 2048, height: 2048, path: `/models/free-cats/${modelId === 'hijiki' ? 'Hijiki' : 'Tororo'}/moc/${modelId}.2048/texture_00.png` },
+        generatedAt: new Date().toISOString(),
+        method: 'Live2D SDK render-diff: setPartsOpacity(partId, 0) vs baseline',
+        zoom: ZOOM,
+        probeCanvas: { width: 600*ZOOM, height: 800*ZOOM },
+        success: okCount,
+        fail: failCount,
+        regions,
+      };
+      window._latestAtlas = result;
+      setStatus(`✅ ${modelId} 完成！<strong>${okCount}</strong> / 17 个零件成功定位，<strong>${failCount}</strong> 个被覆盖`, okCount >= 14 ? 'ok' : '');
+      console.log('atlas_region_map:', result);
+    }
+
+    function diffBBox(base, masked, w, h) {
+      let minX=w, minY=h, maxX=-1, maxY=-1, count=0;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+          // alpha drop == 该像素消失
+          if (masked[i+3] < 10 && base[i+3] >= 10) {
+            if (x<minX) minX=x; if (y<minY) minY=y;
+            if (x>maxX) maxX=x; if (y>maxY) maxY=y;
+            count++;
+          }
+        }
+      }
+      if (maxX < 0) return null;
+      return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1, pixelCount: count };
+    }
+
+    async function runHijiki() { await generateAtlas('hijiki'); }
+    async function runTororo() { await generateAtlas('tororo'); }
+
+    function downloadLatest() {
+      if (!window._latestAtlas) { setStatus('⚠️ 请先生成', 'err'); return; }
+      const blob = new Blob([JSON.stringify(window._latestAtlas, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `atlas_region_map_${window._latestAtlas.model}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>🔍 Live2D 零件 ID 探针 · 跑出真猫原名</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: #0d1117; color: #eee;
+      font-family: "Cascadia Code", "Consolas", "Microsoft YaHei", monospace;
+      padding: 24px; min-height: 100vh;
+    }
+    h1 { font-size: 18px; margin: 0 0 6px; color: #06d6a0; }
+    .sub { color: #9eb6d3; font-size: 12px; margin-bottom: 18px; line-height: 1.6; }
+    .row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    button {
+      padding: 8px 14px; background: #161b22; border: 1px solid #30363d;
+      color: #eee; border-radius: 6px; cursor: pointer; font-size: 13px;
+      font-family: inherit;
+    }
+    button:hover { background: #21262d; }
+    button.primary { background: #06d6a0; color: #0d1117; border-color: #06d6a0; font-weight: 600; }
+    .status { padding: 10px 14px; background: #161b22; border: 1px solid #30363d; border-radius: 6px; font-size: 12px; margin-bottom: 14px; }
+    .status.ok { color: #06d6a0; }
+    .status.err { color: #ef476f; }
+    pre {
+      background: #0a0e14; border: 1px solid #30363d; border-radius: 8px;
+      padding: 16px; max-height: 60vh; overflow: auto; font-size: 12px;
+      line-height: 1.6; white-space: pre-wrap; word-break: break-all;
+    }
+    .part-card {
+      display: inline-block; margin: 4px; padding: 6px 10px;
+      background: #161b22; border: 1px solid #30363d; border-radius: 4px;
+      font-size: 12px; cursor: copy;
+    }
+    .part-card:hover { background: #21262d; border-color: #ffd166; }
+    .part-card .id { color: #ffd166; font-weight: 600; }
+    .part-card .info { color: #9eb6d3; font-size: 10px; margin-left: 6px; }
+    .group { margin-bottom: 24px; }
+    .group h3 { color: #76a8ff; font-size: 13px; margin: 0 0 8px; }
+  </style>
+</head>
+<body>
+  <h1>🔍 Live2D 零件 ID 探针</h1>
+  <div class="sub">
+    这一页直接加载 .moc 二进制，用 <code>Live2DModel.getPartsData()</code> API 把所有官方零件 ID 跑出来——<br>
+    这就是贴图里那些零件的<strong style="color:#ffd166;">原名</strong>，不是猜的。
+  </div>
+
+  <div class="row">
+    <button class="primary" onclick="dumpHijiki()">🐈‍⬛ 探测黑猫 Hijiki</button>
+    <button class="primary" onclick="dumpTororo()">🐱 探测白猫 Tororo</button>
+    <button onclick="copyJSON()">📋 复制 JSON</button>
+    <button onclick="downloadJSON()">💾 下载 JSON</button>
+  </div>
+
+  <div id="status" class="status">⏳ 等待点击按钮…</div>
+
+  <div id="output"></div>
+  <pre id="rawJson" style="display:none;"></pre>
+
+  <script src="/live2d-anatomy-demo/lib/live2d.min.js"></script>
+  <script>
+    const BASE = '/models/free-cats';
+    const result = { hijiki: null, tororo: null };
+
+    function setStatus(msg, cls = '') {
+      const el = document.getElementById('status');
+      el.className = 'status ' + cls;
+      el.textContent = msg;
+    }
+
+    async function loadMocAsBytes(modelId) {
+      const resp = await fetch(`${BASE}/${modelId}/moc/${modelId}.moc`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const buf = await resp.arrayBuffer();
+      return new Uint8Array(buf);
+    }
+
+    /**
+     * Cubism 2 SDK 探针：
+     * - Live2DModel.setModel(bytes)    加载 .moc
+     * - Live2DModel.getPartsData()     取所有 part ID（贴图零件）
+     * - Live2DModel.getParamData()     取所有 parameter ID
+     * - Live2DModel.getDrawData()      取所有 drawable（ArtMesh）ID
+     */
+    function probe(name, modelId) {
+      setStatus(`⏳ 加载 ${name}.moc…`);
+      return loadMocAsBytes(modelId).then(bytes => {
+        const model = new Live2DModel();
+        model.setModel(bytes);
+
+        // 关键：把 SDK 里所有"有名字的零件"全 dump 出来
+        const parts  = model.getPartsData()  || [];  // 贴图零件（part）
+        const params = model.getParamData()  || [];  // 动效参数（eye open / mouth…）
+        const drawables = model.getDrawData() || []; // ArtMesh（每个小片）
+
+        const summary = {
+          model: name,
+          modelId,
+          mocSize: bytes.length,
+          partCount: parts.length,
+          paramCount: params.length,
+          drawableCount: drawables.length,
+          parts: parts,
+          params: params,
+          drawables: drawables,
+        };
+        return summary;
+      });
+    }
+
+    async function dumpHijiki() { await dumpModel('hijiki', '🐈‍⬛ 黑猫 Hijiki'); }
+    async function dumpTororo() { await dumpModel('tororo', '🐱 白猫 Tororo'); }
+
+    async function dumpModel(modelId, label) {
+      try {
+        const summary = await probe(label, modelId);
+        result[modelId] = summary;
+        setStatus(`✅ ${label}：${summary.partCount} 个零件 · ${summary.paramCount} 个参数 · ${summary.drawableCount} 个 ArtMesh`, 'ok');
+        renderCard(summary);
+        document.getElementById('rawJson').textContent = JSON.stringify(summary, null, 2);
+      } catch (e) {
+        setStatus(`❌ ${label} 加载失败：${e.message}`, 'err');
+        console.error(e);
+      }
+    }
+
+    function renderCard(s) {
+      const out = document.getElementById('output');
+      const card = document.createElement('div');
+      card.className = 'group';
+      card.innerHTML = `
+        <h3>${s.model} · ${s.partCount} 零件 / ${s.drawableCount} ArtMesh / ${s.paramCount} 参数</h3>
+        <div><b style="color:#ffd166;">🧩 贴图零件（PARTS）</b> — 这就是 atlas 里的零件名：</div>
+        <div id="parts-${s.modelId}" style="margin: 6px 0 14px;"></div>
+        <div><b style="color:#76a8ff;">🎯 ArtMesh（DRAW）</b> — 每个 ArtMesh 的 ID（共 ${s.drawableCount} 个）：</div>
+        <div id="draws-${s.modelId}" style="margin: 6px 0 14px;"></div>
+        <div><b style="color:#c084fc;">⚙️ 参数（PARAM）</b> — 动效相关（共 ${s.paramCount} 个）：</div>
+        <div id="params-${s.modelId}"></div>
+      `;
+      out.prepend(card);
+
+      const partsBox = card.querySelector(`#parts-${s.modelId}`);
+      s.parts.forEach((p, i) => {
+        const d = document.createElement('span');
+        d.className = 'part-card';
+        d.title = '点击复制';
+        d.innerHTML = `<span class="id">${p.id}</span><span class="info">[${i}]</span>`;
+        d.onclick = () => { navigator.clipboard.writeText(p.id); d.style.borderColor = '#06d6a0'; };
+        partsBox.appendChild(d);
+      });
+
+      const drawsBox = card.querySelector(`#draws-${s.modelId}`);
+      s.drawables.forEach((d, i) => {
+        const el = document.createElement('span');
+        el.className = 'part-card';
+        el.title = '点击复制';
+        el.innerHTML = `<span class="id">${d.id || '(no-id)'}</span><span class="info">[${i}]</span>`;
+        el.onclick = () => { navigator.clipboard.writeText(d.id || ''); el.style.borderColor = '#06d6a0'; };
+        drawsBox.appendChild(el);
+      });
+
+      const paramsBox = card.querySelector(`#params-${s.modelId}`);
+      s.params.forEach((p, i) => {
+        const el = document.createElement('span');
+        el.className = 'part-card';
+        el.innerHTML = `<span class="id">${p.id}</span><span class="info">[${p.value?.toFixed(2) ?? '?'}]</span>`;
+        paramsBox.appendChild(el);
+      });
+    }
+
+    function copyJSON() {
+      const text = document.getElementById('rawJson').textContent;
+      if (!text.trim()) { setStatus('⚠️ 请先探测一只猫', 'err'); return; }
+      navigator.clipboard.writeText(text);
+      setStatus('📋 JSON 已复制到剪贴板', 'ok');
+    }
+
+    function downloadJSON() {
+      const data = { ...result };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'live2d-part-ids.json'; a.click();
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>
