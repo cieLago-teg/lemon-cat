@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>🏷️ 零件命名工作台 · 单图识别 + 手动命名</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0d1117; color: #eee; font-family: "Cascadia Code", "Consolas", monospace; padding: 18px; }
+    h1 { color: #06d6a0; font-size: 18px; margin: 0 0 6px; }
+    .sub { color: #9eb6d3; font-size: 12px; margin-bottom: 14px; line-height: 1.6; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0; align-items: center; }
+    button { padding: 8px 14px; background: #161b22; border: 1px solid #30363d; color: #eee; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: inherit; }
+    button:hover { background: #21262d; }
+    button.primary { background: #06d6a0; color: #0d1117; border-color: #06d6a0; font-weight: 700; }
+    .progress { padding: 10px 14px; background: #161b22; border: 1px solid #30363d; border-radius: 6px; font-size: 12px; margin-bottom: 12px; }
+    .progress .bar { height: 6px; background: #21262d; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+    .progress .bar > div { height: 100%; background: linear-gradient(90deg, #06d6a0, #76a8ff); transition: width 0.3s; }
+    .container { display: flex; flex-direction: column; gap: 16px; }
+    .stage { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px; }
+    .stage h3 { margin: 0 0 10px; color: #76a8ff; font-size: 13px; }
+    .tex-box { position: relative; background: #0a0e14; border-radius: 4px; overflow: auto; max-height: 50vh; }
+    .tex-box img { display: block; max-width: 100%; image-rendering: pixelated; }
+    .tex-box .bbox {
+      position: absolute; border: 2px solid #06d6a0; background: rgba(6,214,160,0.12);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .tex-box .bbox:hover { background: rgba(6,214,160,0.25); }
+    .tex-box .bbox.selected { border-color: #ffd166; background: rgba(255,209,102,0.25); box-shadow: 0 0 8px #ffd16680; }
+    .tex-box .bbox.named { border-color: #76a8ff; background: rgba(118,168,255,0.15); }
+    .tex-box .bbox .label {
+      position: absolute; bottom: 100%; left: 0; background: #0d1117; color: #ffd166;
+      padding: 2px 6px; font-size: 10px; border-radius: 3px 3px 0 0; white-space: nowrap;
+    }
+
+    .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+    .item { background: #161b22; border: 2px solid #30363d; border-radius: 6px; padding: 6px; cursor: pointer; transition: all 0.15s; }
+    .item:hover { border-color: #76a8ff; }
+    .item.selected { border-color: #ffd166; box-shadow: 0 0 10px #ffd16660; }
+    .item.named { border-color: #06d6a0; }
+    .item img { display: block; width: 100%; height: 140px; object-fit: contain; image-rendering: pixelated; background: repeating-conic-gradient(#0a0e14 0% 25%, #1a1f29 0% 50%) 0 0/12px 12px; border-radius: 3px; }
+    .item input { width: 100%; margin-top: 4px; padding: 4px 6px; background: #0d1117; border: 1px solid #30363d; color: #eee; border-radius: 3px; font-size: 11px; font-family: inherit; }
+    .item input:focus { border-color: #ffd166; outline: none; }
+    .item .info { color: #9eb6d3; font-size: 9px; margin-top: 2px; }
+    .item .part-id { color: #76a8ff; font-size: 10px; margin-top: 2px; word-break: break-all; }
+    .item select { width: 100%; margin-top: 4px; padding: 3px 4px; background: #0d1117; border: 1px solid #30363d; color: #eee; border-radius: 3px; font-size: 10px; font-family: inherit; }
+    .filter { padding: 6px 10px; background: #0d1117; border: 1px solid #30363d; color: #eee; border-radius: 4px; font-size: 12px; font-family: inherit; }
+  </style>
+</head>
+<body>
+  <h1>🏷️ 零件命名工作台</h1>
+  <div class="sub">
+    流程：<strong>自动分离元素</strong>（每个独立 PNG）→ <strong>你看图命名</strong>（每块下方下拉选 PARTS_01_xxx）→ <strong>保存 atlas_region_map</strong>。<br>
+    不自动命名。你命名多少保存多少，剩下的留空。
+  </div>
+
+  <div class="row">
+    <button class="primary" onclick="loadModel('hijiki')">🐈‍⬛ 黑猫 Hijiki</button>
+    <button class="primary" onclick="loadModel('tororo')">🐱 白猫 Tororo</button>
+    <input id="filter" class="filter" placeholder="🔍 过滤：按名称/索引" oninput="renderGallery()">
+    <button onclick="exportMap()">💾 导出 atlas_region_map.json</button>
+    <button onclick="autoSave()">💾 自动保存到 localStorage</button>
+  </div>
+
+  <div id="progress" class="progress">
+    <span>📊 进度：<span id="prog">0 / 0</span> 已命名</span>
+    <div class="bar"><div id="progbar" style="width:0%"></div></div>
+  </div>
+
+  <div class="container">
+    <div class="stage">
+      <h3>🗺️ 完整贴图（点击 bbox 或下方元素卡可定位）</h3>
+      <div class="tex-box" id="texBox">
+        <img id="texImg" src="" alt="texture">
+        <div id="bboxLayer" style="position:absolute;inset:0;"></div>
+      </div>
+    </div>
+
+    <div class="stage">
+      <h3>🔍 元素列表（<span id="elemCount">0</span> 个独立元素 · 点卡片可在大图上定位）</h3>
+      <div class="gallery" id="gallery"></div>
+    </div>
+  </div>
+
+  <script>
+    // 17 个 PARTS_01_xxx 候选（与 live2d-part-registry.json 一致）
+    const PARTS_OPTIONS = [
+      { id: 'PARTS_01_ARM_L',        zh: '左前爪·前层' },
+      { id: 'PARTS_01_ARM_L_02',     zh: '左前爪·后层' },
+      { id: 'PARTS_01_ARM_R',        zh: '右前爪·前层' },
+      { id: 'PARTS_01_ARM_R_02',     zh: '右前爪·后层' },
+      { id: 'PARTS_01_BACKGROUND',   zh: '背景（可选）' },
+      { id: 'PARTS_01_BODY',         zh: '身体主色' },
+      { id: 'PARTS_01_BROW_001',     zh: '眉毛' },
+      { id: 'PARTS_01_CHEST',        zh: '胸/腹' },
+      { id: 'PARTS_01_CORE_001',     zh: '脸核心' },
+      { id: 'PARTS_01_EAR_001',      zh: '耳朵' },
+      { id: 'PARTS_01_EYE_001',      zh: '眼睛（整）' },
+      { id: 'PARTS_01_EYE_BALL_001', zh: '眼球/瞳孔' },
+      { id: 'PARTS_01_FACE_001',     zh: '脸部底色' },
+      { id: 'PARTS_01_MOUTH_001',    zh: '嘴' },
+      { id: 'PARTS_01_NOSE_001',     zh: '鼻子' },
+      { id: 'PARTS_01_SKETCH',       zh: '描边' },
+      { id: 'PARTS_01_TAIL',         zh: '尾巴' },
+    ];
+    const PART_ZH = Object.fromEntries(PARTS_OPTIONS.map(p => [p.id, p.zh]));
+
+    let currentModel = null;
+    let elements = [];           // 当前模型的 elements
+    let selectedIdx = null;
+    let names = {};              // index → { customName, partId }
+    let texNaturalSize = { w: 2048, h: 2048 };
+
+    async function loadModel(modelId) {
+      currentModel = modelId;
+      // 从 localStorage 恢复
+      const saved = localStorage.getItem(`names_${modelId}`);
+      names = saved ? JSON.parse(saved) : {};
+      selectedIdx = null;
+      // 加载 elements.json
+      const dir = `/models/free-cats/${modelId === 'hijiki' ? 'Hijiki' : 'Tororo'}/moc/elements`;
+      const resp = await fetch(`${dir}/elements.json`);
+      elements = (await resp.json()).elements;
+      // 加载贴图
+      const img = document.getElementById('texImg');
+      img.src = `/models/free-cats/${modelId === 'hijiki' ? 'Hijiki' : 'Tororo'}/moc/${modelId}.2048/texture_00.png`;
+      await new Promise(r => img.onload = r);
+      texNaturalSize = { w: img.naturalWidth, h: img.naturalHeight };
+      renderTexBoxes();
+      renderGallery();
+      updateProgress();
+    }
+
+    function renderTexBoxes() {
+      const layer = document.getElementById('bboxLayer');
+      layer.innerHTML = '';
+      const imgRect = document.getElementById('texImg').getBoundingClientRect();
+      const parentRect = document.getElementById('texBox').getBoundingClientRect();
+      const sx = imgRect.width / texNaturalSize.w;
+      const sy = imgRect.height / texNaturalSize.h;
+      const offsetX = imgRect.left - parentRect.left;
+      const offsetY = imgRect.top - parentRect.top;
+
+      elements.forEach((el) => {
+        if (!names[el.index]?.partId && !names[el.index]?.customName) return; // 未命名的不画
+        const div = document.createElement('div');
+        div.className = 'bbox';
+        if (el.index === selectedIdx) div.classList.add('selected');
+        else if (names[el.index]?.partId) div.classList.add('named');
+        div.style.left   = (offsetX + el.bbox.x * sx) + 'px';
+        div.style.top    = (offsetY + el.bbox.y * sy) + 'px';
+        div.style.width  = (el.bbox.w * sx) + 'px';
+        div.style.height = (el.bbox.h * sy) + 'px';
+        const lbl = names[el.index]?.partId || names[el.index]?.customName || '?';
+        div.innerHTML = `<div class="label">#${el.index} ${lbl}</div>`;
+        div.onclick = () => selectElement(el.index);
+        layer.appendChild(div);
+      });
+    }
+
+    function renderGallery() {
+      const gal = document.getElementById('gallery');
+      const filter = document.getElementById('filter').value.toLowerCase();
+      gal.innerHTML = '';
+      const dir = `/models/free-cats/${currentModel === 'hijiki' ? 'Hijiki' : 'Tororo'}/moc/elements`;
+      document.getElementById('elemCount').textContent = elements.length;
+
+      elements.forEach((el) => {
+        const n = names[el.index] || {};
+        const partZh = n.partId ? PART_ZH[n.partId] : '';
+        const searchText = `${el.index} ${n.partId || ''} ${n.customName || ''} ${partZh}`.toLowerCase();
+        if (filter && !searchText.includes(filter)) return;
+
+        const item = document.createElement('div');
+        item.className = 'item';
+        if (el.index === selectedIdx) item.classList.add('selected');
+        if (n.partId || n.customName) item.classList.add('named');
+
+        item.innerHTML = `
+          <img src="${dir}/${el.filename}" alt="element ${el.index}">
+          <input type="text" placeholder="自定义名（可选）" value="${n.customName || ''}" oninput="setCustom(${el.index}, this.value)">
+          <select onchange="setPartId(${el.index}, this.value)">
+            <option value="">— 选 PARTS_01_xxx —</option>
+            ${PARTS_OPTIONS.map(p => `<option value="${p.id}" ${n.partId === p.id ? 'selected' : ''}>${p.id}（${p.zh}）</option>`).join('')}
+          </select>
+          <div class="part-id">${n.partId || ''}</div>
+          <div class="info">#${el.index} · ${el.bbox.w}×${el.bbox.h} · ${el.area.toLocaleString()} px</div>
+        `;
+        item.onclick = (e) => {
+          if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+          selectElement(el.index);
+        };
+        gal.appendChild(item);
+      });
+    }
+
+    function selectElement(idx) {
+      selectedIdx = idx;
+      renderTexBoxes();
+      renderGallery();
+    }
+
+    function setCustom(idx, val) {
+      if (!names[idx]) names[idx] = {};
+      names[idx].customName = val;
+      autoSave();
+      renderTexBoxes();
+      updateProgress();
+    }
+
+    function setPartId(idx, val) {
+      if (!names[idx]) names[idx] = {};
+      names[idx].partId = val || null;
+      autoSave();
+      renderTexBoxes();
+      renderGallery();
+      updateProgress();
+    }
+
+    function updateProgress() {
+      const named = elements.filter(el => names[el.index]?.partId || names[el.index]?.customName).length;
+      document.getElementById('prog').textContent = `${named} / ${elements.length}`;
+      document.getElementById('progbar').style.width = (named / elements.length * 100) + '%';
+    }
+
+    function autoSave() {
+      localStorage.setItem(`names_${currentModel}`, JSON.stringify(names));
+    }
+
+    function exportMap() {
+      const regions = {};
+      elements.forEach((el) => {
+        const n = names[el.index] || {};
+        if (!n.partId && !n.customName) return;
+        regions[n.partId || `custom_${el.index}`] = {
+          bbox: el.bbox,
+          area: el.area,
+          elementIndex: el.index,
+          customName: n.customName || null,
+          partId: n.partId,
+          zh: n.partId ? PART_ZH[n.partId] : null,
+        };
+      });
+      const out = {
+        model: currentModel,
+        generatedAt: new Date().toISOString(),
+        generatedBy: 'manual naming UI',
+        elementCount: elements.length,
+        namedCount: Object.keys(regions).length,
+        regions,
+      };
+      const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `atlas_region_map_${currentModel}.json`;
+      a.click();
+    }
+  </script>
+</body>
+</html>
