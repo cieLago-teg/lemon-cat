@@ -2,86 +2,150 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>🏷️ 零件命名工作台 · 单图识别 + 手动命名</title>
+  <title>🏷️ 零件命名工作台 · Live2D 对照 + 手动命名</title>
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; background: #0d1117; color: #eee; font-family: "Cascadia Code", "Consolas", monospace; padding: 18px; }
-    h1 { color: #06d6a0; font-size: 18px; margin: 0 0 6px; }
-    .sub { color: #9eb6d3; font-size: 12px; margin-bottom: 14px; line-height: 1.6; }
-    .row { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0; align-items: center; }
-    button { padding: 8px 14px; background: #161b22; border: 1px solid #30363d; color: #eee; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: inherit; }
+    body {
+      margin: 0; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: #eee; font-family: "Cascadia Code", "Consolas", monospace; padding: 14px; min-height: 100vh;
+    }
+    h1 { color: #ffd166; font-size: 18px; margin: 0 0 4px; }
+    .sub { color: #9eb6d3; font-size: 11px; margin-bottom: 10px; line-height: 1.6; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; align-items: center; }
+    button { padding: 7px 12px; background: #161b22; border: 1px solid #30363d; color: #eee; border-radius: 6px; cursor: pointer; font-size: 12px; font-family: inherit; transition: all 0.15s; }
     button:hover { background: #21262d; }
     button.primary { background: #06d6a0; color: #0d1117; border-color: #06d6a0; font-weight: 700; }
-    .progress { padding: 10px 14px; background: #161b22; border: 1px solid #30363d; border-radius: 6px; font-size: 12px; margin-bottom: 12px; }
-    .progress .bar { height: 6px; background: #21262d; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+    button.accent { background: linear-gradient(135deg, #ef476f, #ff6b8b); border: none; }
+    button.accent2 { background: linear-gradient(135deg, #118ab2, #0a6e8e); border: none; }
+    button.accent3 { background: linear-gradient(135deg, #c77dff, #9d4edd); border: none; }
+    .progress { padding: 8px 12px; background: #161b22; border: 1px solid #30363d; border-radius: 6px; font-size: 11px; margin-bottom: 10px; }
+    .progress .bar { height: 5px; background: #21262d; border-radius: 3px; overflow: hidden; margin-top: 4px; }
     .progress .bar > div { height: 100%; background: linear-gradient(90deg, #06d6a0, #76a8ff); transition: width 0.3s; }
-    .container { display: flex; flex-direction: column; gap: 16px; }
-    .stage { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px; }
-    .stage h3 { margin: 0 0 10px; color: #76a8ff; font-size: 13px; }
-    .tex-box { position: relative; background: #0a0e14; border-radius: 4px; overflow: auto; max-height: 50vh; }
+
+    /* === 双栏布局 === */
+    .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 100%; }
+    @media (max-width: 1100px) { .main-grid { grid-template-columns: 1fr; } }
+
+    .stage { background: rgba(22,27,34,0.9); border: 1px solid #30363d; border-radius: 8px; padding: 10px; backdrop-filter: blur(6px); }
+    .stage h3 { margin: 0 0 8px; color: #76a8ff; font-size: 12px; }
+
+    /* 贴图区 */
+    .tex-box { position: relative; background: #0a0e14; border-radius: 4px; overflow: auto; max-height: 400px; }
     .tex-box img { display: block; max-width: 100%; image-rendering: pixelated; }
     .tex-box .bbox {
-      position: absolute; border: 2px solid #06d6a0; background: rgba(6,214,160,0.12);
+      position: absolute; border: 2px solid #06d6a0; background: rgba(6,214,160,0.10);
       cursor: pointer; transition: all 0.15s;
     }
     .tex-box .bbox:hover { background: rgba(6,214,160,0.25); }
-    .tex-box .bbox.selected { border-color: #ffd166; background: rgba(255,209,102,0.25); box-shadow: 0 0 8px #ffd16680; }
-    .tex-box .bbox.named { border-color: #76a8ff; background: rgba(118,168,255,0.15); }
+    .tex-box .bbox.selected { border-color: #ffd166; background: rgba(255,209,102,0.25); box-shadow: 0 0 10px #ffd16680; z-index: 2; }
+    .tex-box .bbox.named { border-color: #76a8ff; background: rgba(118,168,255,0.12); }
     .tex-box .bbox .label {
       position: absolute; bottom: 100%; left: 0; background: #0d1117; color: #ffd166;
-      padding: 2px 6px; font-size: 10px; border-radius: 3px 3px 0 0; white-space: nowrap;
+      padding: 2px 6px; font-size: 9px; border-radius: 3px 3px 0 0; white-space: nowrap;
     }
 
-    .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
-    .item { background: #161b22; border: 2px solid #30363d; border-radius: 6px; padding: 6px; cursor: pointer; transition: all 0.15s; }
+    .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; max-height: 320px; overflow-y: auto; }
+    .item { background: #161b22; border: 2px solid #30363d; border-radius: 6px; padding: 5px; cursor: pointer; transition: all 0.15s; }
     .item:hover { border-color: #76a8ff; }
     .item.selected { border-color: #ffd166; box-shadow: 0 0 10px #ffd16660; }
     .item.named { border-color: #06d6a0; }
-    .item img { display: block; width: 100%; height: 140px; object-fit: contain; image-rendering: pixelated; background: repeating-conic-gradient(#0a0e14 0% 25%, #1a1f29 0% 50%) 0 0/12px 12px; border-radius: 3px; }
-    .item input { width: 100%; margin-top: 4px; padding: 4px 6px; background: #0d1117; border: 1px solid #30363d; color: #eee; border-radius: 3px; font-size: 11px; font-family: inherit; }
+    .item img { display: block; width: 100%; height: 110px; object-fit: contain; image-rendering: pixelated; background: repeating-conic-gradient(#0a0e14 0% 25%, #1a1f29 0% 50%) 0 0/10px 10px; border-radius: 3px; }
+    .item input { width: 100%; margin-top: 3px; padding: 3px 5px; background: #0d1117; border: 1px solid #30363d; color: #eee; border-radius: 3px; font-size: 10px; font-family: inherit; }
     .item input:focus { border-color: #ffd166; outline: none; }
-    .item .info { color: #9eb6d3; font-size: 9px; margin-top: 2px; }
-    .item .part-id { color: #76a8ff; font-size: 10px; margin-top: 2px; word-break: break-all; }
-    .item select { width: 100%; margin-top: 4px; padding: 3px 4px; background: #0d1117; border: 1px solid #30363d; color: #eee; border-radius: 3px; font-size: 10px; font-family: inherit; }
-    .filter { padding: 6px 10px; background: #0d1117; border: 1px solid #30363d; color: #eee; border-radius: 4px; font-size: 12px; font-family: inherit; }
+    .item .info { color: #9eb6d3; font-size: 8px; margin-top: 2px; }
+    .item .part-id { color: #76a8ff; font-size: 9px; margin-top: 2px; word-break: break-all; }
+    .item select { width: 100%; margin-top: 3px; padding: 2px 3px; background: #0d1117; border: 1px solid #30363d; color: #eee; border-radius: 3px; font-size: 10px; font-family: inherit; }
+    .filter { padding: 5px 8px; background: #0d1117; border: 1px solid #30363d; color: #eee; border-radius: 4px; font-size: 11px; font-family: inherit; }
+
+    /* Live2D 对照区 */
+    .live2d-wrap {
+      width: 100%; height: 480px; background: linear-gradient(180deg, rgba(22,33,62,0.8) 0%, rgba(15,52,96,0.8) 100%);
+      border-radius: 8px; overflow: hidden; position: relative; cursor: grab;
+    }
+    .live2d-wrap:active { cursor: grabbing; }
+    .live2d-wrap canvas { width: 100% !important; height: 100% !important; display: block; }
+
+    .l2d-badge {
+      position: absolute; top: 6px; right: 6px; background: rgba(6,214,160,0.2);
+      color: #06d6a0; font-size: 9px; padding: 2px 7px; border-radius: 8px;
+      border: 1px solid rgba(6,214,160,0.3); pointer-events: none; z-index: 2;
+    }
+    .l2d-hint {
+      position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.55); color: #ffd166; font-size: 10px;
+      padding: 3px 9px; border-radius: 8px; pointer-events: none; opacity: 0.8; z-index: 2;
+    }
+    .l2d-status { font-size: 10px; color: #9eb6d3; margin-top: 6px; }
+    .l2d-status .ok { color: #06d6a0; font-weight: 600; }
+
+    .controls-row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+
+    /* 高亮闪烁动画 */
+    @keyframes flashPart { 0%,100% { filter: brightness(1); } 50% { filter: brightness(2.5) drop-shadow(0 0 8px #ffd166); } }
+    .item.flash-highlight { animation: flashPart 0.3s ease-in-out 3; }
   </style>
 </head>
 <body>
-  <h1>🏷️ 零件命名工作台</h1>
+  <h1>🏷️ 零件命名工作台 · 对照模式</h1>
   <div class="sub">
-    流程：<strong>自动分离元素</strong>（每个独立 PNG）→ <strong>你看图命名</strong>（每块下方下拉选 PARTS_01_xxx）→ <strong>保存 atlas_region_map</strong>。<br>
-    不自动命名。你命名多少保存多少，剩下的留空。
+    <strong>左边：</strong>贴图 + 元素卡，命名 PARTS_01_xxx → <strong>右边：</strong>Live2D 全身对照模型，看动作定位部位。<br>
+    点触猫猫有互动反馈。选中元素后自动高亮对应部位。
   </div>
 
   <div class="row">
-    <button class="primary" onclick="loadModel()">🐱 白猫 Tororo</button>
-    <input id="filter" class="filter" placeholder="🔍 过滤：按名称/索引" oninput="renderGallery()">
-    <button onclick="exportMap()">💾 导出 atlas_region_map.json</button>
-    <button onclick="autoSave()">💾 自动保存到 localStorage</button>
+    <button class="primary" onclick="loadAll()">🐱 加载白猫 + 贴图</button>
+    <input id="filter" class="filter" placeholder="🔍 过滤元素" oninput="renderGallery()">
+    <button onclick="exportMap()">💾 导出 JSON</button>
+    <span style="font-size:11px;color:#9eb6d3;">| Live2D 互动：</span>
+    <button onclick="petAction('tap_body')" style="background:linear-gradient(135deg,#06d6a0,#05b386);border:none;color:#0d1117;">🎯 随机</button>
+    <button onclick="petAction('idle')" style="background:linear-gradient(135deg,#ffd166,#ffb74d);border:none;color:#5a3a00;">😴 待机</button>
+    <button onclick="petAction('flick_head')" class="accent2">👋 甩头</button>
+    <button onclick="petHead()" class="accent3">🖐️ 摸头</button>
+    <button onclick="flashPart(null)" style="background:#161b22;">↺ 重置高亮</button>
   </div>
 
   <div id="progress" class="progress">
-    <span>📊 进度：<span id="prog">0 / 0</span> 已命名</span>
+    <span>📊 命名进度：<span id="prog">0 / 0</span> 已命名 · 当前选中：<span id="selInfo" style="color:#ffd166;">无</span></span>
     <div class="bar"><div id="progbar" style="width:0%"></div></div>
   </div>
 
-  <div class="container">
-    <div class="stage">
-      <h3>🗺️ 完整贴图（点击 bbox 或下方元素卡可定位）</h3>
-      <div class="tex-box" id="texBox">
-        <img id="texImg" src="" alt="texture">
-        <div id="bboxLayer" style="position:absolute;inset:0;"></div>
+  <div class="main-grid">
+    <!-- 左栏：贴图 + 元素列表 -->
+    <div>
+      <div class="stage">
+        <h3>🗺️ 完整贴图（点 bbox 或下方元素卡定位）</h3>
+        <div class="tex-box" id="texBox">
+          <img id="texImg" src="" alt="texture">
+          <div id="bboxLayer" style="position:absolute;inset:0;"></div>
+        </div>
+      </div>
+      <div class="stage" style="margin-top:10px;">
+        <h3>🔍 元素列表（<span id="elemCount">0</span> 个 · ↓ 卡片选部位）</h3>
+        <div class="gallery" id="gallery"></div>
       </div>
     </div>
 
-    <div class="stage">
-      <h3>🔍 元素列表（<span id="elemCount">0</span> 个独立元素 · 点卡片可在大图上定位）</h3>
-      <div class="gallery" id="gallery"></div>
+    <!-- 右栏：Live2D 对照模型 -->
+    <div>
+      <div class="stage">
+        <h3>🐱 Live2D 对照模型 · Tororo 白猫 · 全身</h3>
+        <div class="live2d-wrap" id="wrap-live2d">
+          <span class="l2d-badge">Cubism 2 · 60 零件</span>
+          <span class="l2d-hint">👆 点击猫咪互动 · 对照贴图命名</span>
+          <canvas id="cv-live2d"></canvas>
+        </div>
+        <div class="l2d-status" id="status-live2d">⏳ 点击上方"加载白猫 + 贴图"按钮…</div>
+      </div>
     </div>
   </div>
 
+  <script src="./lib/live2d.min.js"></script>
+  <script src="./lib/live2dcubismcore.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.10/dist/browser/pixi.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/index.min.js"></script>
+
   <script>
-    // 17 个 PARTS_01_xxx 候选（与 live2d-part-registry.json 一致）
+    // ==================== 零件定义 ====================
     const PARTS_OPTIONS = [
       { id: 'PARTS_01_ARM_L',        zh: '左前爪·前层' },
       { id: 'PARTS_01_ARM_L_02',     zh: '左前爪·后层' },
@@ -103,25 +167,34 @@
     ];
     const PART_ZH = Object.fromEntries(PARTS_OPTIONS.map(p => [p.id, p.zh]));
 
-    let currentModel = null;
-    let elements = [];           // 当前模型的 elements
+    // ==================== 贴图命名状态 ====================
+    let elements = [];
     let selectedIdx = null;
-    let names = {};              // index → { customName, partId }
+    let names = {};
     let texNaturalSize = { w: 2048, h: 2048 };
 
-    async function loadModel() {
-      currentModel = 'tororo';
-      // 从 localStorage 恢复
-      const saved = localStorage.getItem(`names_tororo`);
+    // ==================== Live2D 状态 ====================
+    let l2dApp = null;
+    let l2dModel = null;
+    let l2dCoreModel = null;
+    let l2dMotionMgr = null;
+    let flashTimer = null;
+
+    async function loadAll() {
+      await Promise.all([loadTexture(), loadLive2D()]);
+    }
+
+    // ==================== 贴图加载 ====================
+    async function loadTexture() {
+      const saved = localStorage.getItem('names_tororo');
       names = saved ? JSON.parse(saved) : {};
       selectedIdx = null;
-      // 加载 elements.json
-      const dir = `/models/free-cats/Tororo/moc/elements`;
-      const resp = await fetch(`${dir}/elements.json`);
+
+      const resp = await fetch('/models/free-cats/Tororo/moc/elements/elements.json');
       elements = (await resp.json()).elements;
-      // 加载贴图
+
       const img = document.getElementById('texImg');
-      img.src = `/models/free-cats/Tororo/moc/tororo.2048/texture_00.png`;
+      img.src = '/models/free-cats/Tororo/moc/tororo.2048/texture_00.png';
       await new Promise(r => img.onload = r);
       texNaturalSize = { w: img.naturalWidth, h: img.naturalHeight };
       renderTexBoxes();
@@ -140,7 +213,7 @@
       const offsetY = imgRect.top - parentRect.top;
 
       elements.forEach((el) => {
-        if (!names[el.index]?.partId && !names[el.index]?.customName) return; // 未命名的不画
+        if (!names[el.index]?.partId && !names[el.index]?.customName) return;
         const div = document.createElement('div');
         div.className = 'bbox';
         if (el.index === selectedIdx) div.classList.add('selected');
@@ -160,7 +233,7 @@
       const gal = document.getElementById('gallery');
       const filter = document.getElementById('filter').value.toLowerCase();
       gal.innerHTML = '';
-      const dir = `/models/free-cats/Tororo/moc/elements`;
+      const dir = '/models/free-cats/Tororo/moc/elements';
       document.getElementById('elemCount').textContent = elements.length;
 
       elements.forEach((el) => {
@@ -175,14 +248,14 @@
         if (n.partId || n.customName) item.classList.add('named');
 
         item.innerHTML = `
-          <img src="${dir}/${el.filename}" alt="element ${el.index}">
-          <input type="text" placeholder="自定义名（可选）" value="${n.customName || ''}" oninput="setCustom(${el.index}, this.value)">
+          <img src="${dir}/${el.filename}" alt="element ${el.index}" loading="lazy">
+          <input type="text" placeholder="自定义名" value="${n.customName || ''}" oninput="setCustom(${el.index}, this.value)">
           <select onchange="setPartId(${el.index}, this.value)">
-            <option value="">— 选 PARTS_01_xxx —</option>
+            <option value="">— PARTS_01_xxx —</option>
             ${PARTS_OPTIONS.map(p => `<option value="${p.id}" ${n.partId === p.id ? 'selected' : ''}>${p.id}（${p.zh}）</option>`).join('')}
           </select>
           <div class="part-id">${n.partId || ''}</div>
-          <div class="info">#${el.index} · ${el.bbox.w}×${el.bbox.h} · ${el.area.toLocaleString()} px</div>
+          <div class="info">#${el.index} · ${el.bbox.w}×${el.bbox.h}</div>
         `;
         item.onclick = (e) => {
           if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
@@ -196,6 +269,13 @@
       selectedIdx = idx;
       renderTexBoxes();
       renderGallery();
+      updateProgress();
+
+      // ✨ 联动：高亮 Live2D 对应部位
+      const n = names[idx] || {};
+      const partId = n.partId;
+      document.getElementById('selInfo').textContent = partId ? `#${idx} → ${partId}（${PART_ZH[partId]}）` : `#${idx}（未命名）`;
+      if (partId) flashPart(partId);
     }
 
     function setCustom(idx, val) {
@@ -213,6 +293,11 @@
       renderTexBoxes();
       renderGallery();
       updateProgress();
+      // 联动高亮
+      if (val) {
+        document.getElementById('selInfo').textContent = `#${idx} → ${val}（${PART_ZH[val]}）`;
+        flashPart(val);
+      }
     }
 
     function updateProgress() {
@@ -222,7 +307,7 @@
     }
 
     function autoSave() {
-      localStorage.setItem(`names_${currentModel}`, JSON.stringify(names));
+      localStorage.setItem('names_tororo', JSON.stringify(names));
     }
 
     function exportMap() {
@@ -231,27 +316,155 @@
         const n = names[el.index] || {};
         if (!n.partId && !n.customName) return;
         regions[n.partId || `custom_${el.index}`] = {
-          bbox: el.bbox,
-          area: el.area,
-          elementIndex: el.index,
-          customName: n.customName || null,
-          partId: n.partId,
+          bbox: el.bbox, area: el.area, elementIndex: el.index,
+          customName: n.customName || null, partId: n.partId,
           zh: n.partId ? PART_ZH[n.partId] : null,
         };
       });
       const out = {
-        model: currentModel,
-        generatedAt: new Date().toISOString(),
-        generatedBy: 'manual naming UI',
-        elementCount: elements.length,
-        namedCount: Object.keys(regions).length,
-        regions,
+        model: 'tororo', generatedAt: new Date().toISOString(),
+        generatedBy: 'manual naming UI with Live2D reference',
+        elementCount: elements.length, namedCount: Object.keys(regions).length, regions,
       };
       const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `atlas_region_map_${currentModel}.json`;
+      a.download = 'atlas_region_map_tororo.json';
       a.click();
+    }
+
+    // ==================== Live2D 对照模型 ====================
+    async function loadLive2D() {
+      const statusEl = document.getElementById('status-live2d');
+      const canvas = document.getElementById('cv-live2d');
+      const wrap = document.getElementById('wrap-live2d');
+
+      statusEl.innerHTML = '⏳ 创建 PIXI 应用…';
+
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const sw = wrap.clientWidth;
+      const sh = wrap.clientHeight;
+
+      try {
+        l2dApp = new PIXI.Application({
+          view: canvas, width: sw, height: sh,
+          backgroundColor: 0x16213e,
+          resolution: window.devicePixelRatio || 1,
+          autoDensity: true,
+        });
+
+        statusEl.innerHTML += '<br>⏳ 加载 Tororo 模型…';
+        l2dModel = await PIXI.live2d.Live2DModel.from('/models/free-cats/Tororo/tororo.model.json', {
+          autoInteract: true, autoFocus: true,
+        });
+
+        // 全身显示：基于 atlas_region_map 的真实 bbox
+        const catBox = await fetch('/models/free-cats/Tororo/moc/tororo.atlas_region_map.json')
+          .then(r => r.json()).then(data => {
+            let minX=1e9, minY=1e9, maxX=0, maxY=0;
+            for (const b of data.blocks) {
+              if (b.bbox.x < minX) minX = b.bbox.x;
+              if (b.bbox.y < minY) minY = b.bbox.y;
+              if (b.bbox.x + b.bbox.w > maxX) maxX = b.bbox.x + b.bbox.w;
+              if (b.bbox.y + b.bbox.h > maxY) maxY = b.bbox.y + b.bbox.h;
+            }
+            return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+          });
+
+        const scale = Math.min(sw / catBox.w, sh / catBox.h) * 0.92;
+        l2dModel.scale.set(scale);
+        l2dModel.x = (sw - catBox.w * scale) / 2 - catBox.x * scale;
+        l2dModel.y = (sh - catBox.h * scale) / 2 - catBox.y * scale;
+        l2dApp.stage.addChild(l2dModel);
+
+        l2dCoreModel = l2dModel.internalModel?.coreModel;
+        l2dMotionMgr = l2dModel.internalModel?.motionManager;
+
+        statusEl.innerHTML = `<span class="ok">✅ Tororo 白猫加载成功 · 猫占用 ${catBox.w}×${catBox.h} · 17 部位可对照</span>`;
+
+        // 点击画布互动
+        canvas.addEventListener('pointerdown', () => petAction('tap_body'));
+
+      } catch (e) {
+        statusEl.innerHTML = `❌ 加载失败：${e.message}`;
+        console.error(e);
+      }
+    }
+
+    function petAction(group) {
+      if (!l2dMotionMgr) return;
+      try {
+        if (group === 'idle') {
+          l2dMotionMgr.startRandomMotion('idle', 1);
+        } else {
+          l2dMotionMgr.startRandomMotion(group, 1);
+        }
+      } catch (e) { console.warn('petAction error', e); }
+    }
+
+    function petHead() {
+      if (!l2dCoreModel) return;
+      const candidates = [['PARAM_ANGLE_X','PARAM_ANGLE_Y'],['ParamAngleX','ParamAngleY']];
+      const start = performance.now();
+      function tick() {
+        const t = (performance.now() - start) / 1800;
+        if (t >= 1) return;
+        for (const pair of candidates) {
+          try {
+            if (typeof l2dCoreModel.setParamFloat === 'function') {
+              l2dCoreModel.setParamFloat(pair[0], Math.sin(t*Math.PI)*25/30);
+              l2dCoreModel.setParamFloat(pair[1], Math.cos(t*Math.PI*2)*0.3);
+            } else if (typeof l2dCoreModel.setParameterValueById === 'function') {
+              l2dCoreModel.setParameterValueById(pair[0], Math.sin(t*Math.PI)*25/30);
+              l2dCoreModel.setParameterValueById(pair[1], Math.cos(t*Math.PI*2)*0.3);
+            }
+          } catch(e){}
+        }
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+
+    // ✨ 核心功能：选中元素 → 对应 Live2D 部位高亮闪烁
+    function flashPart(partId) {
+      if (!l2dCoreModel || typeof l2dCoreModel.setPartsOpacity !== 'function') return;
+      if (flashTimer) clearTimeout(flashTimer);
+
+      // 先全部恢复 100%
+      PARTS_OPTIONS.forEach(p => {
+        try { l2dCoreModel.setPartsOpacity(p.id, 1.0); } catch(e){}
+      });
+
+      if (!partId) return;
+
+      // 闪烁：其他部位半透明 → 目标部位闪亮
+      let count = 0;
+      const maxFlashes = 6;
+      const interval = 180;
+
+      function tick() {
+        const highlight = count % 2 === 0;
+        PARTS_OPTIONS.forEach(p => {
+          try {
+            if (p.id === partId) {
+              l2dCoreModel.setPartsOpacity(p.id, highlight ? 1.0 : 0.4);
+            } else {
+              l2dCoreModel.setPartsOpacity(p.id, highlight ? 0.25 : 0.6);
+            }
+          } catch(e){}
+        });
+        count++;
+        if (count < maxFlashes) {
+          flashTimer = setTimeout(tick, interval);
+        } else {
+          // 全部恢复
+          PARTS_OPTIONS.forEach(p => {
+            try { l2dCoreModel.setPartsOpacity(p.id, 1.0); } catch(e){}
+          });
+          flashTimer = null;
+        }
+      }
+      tick();
     }
   </script>
 </body>
