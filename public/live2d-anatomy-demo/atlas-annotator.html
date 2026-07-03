@@ -225,8 +225,7 @@
 
 <div class="top-bar">
   <span style="font-weight:700;">🎯 Atlas 部位标注 v4</span>
-  <button class="btn-mini" id="modelHijiki" style="background:#06d6a0;border-color:#06d6a0;color:#1a1a2e;font-weight:600;">🐈‍⬛ 黑猫</button>
-  <button class="btn-mini" id="modelTororo">🐱 白猫</button>
+  <button class="btn-mini" id="modelTororo" style="background:#06d6a0;border-color:#06d6a0;color:#1a1a2e;font-weight:600;">🐱 白猫 Tororo</button>
   <span style="color:#9eb6d3;">显示：</span>
   <div class="canvas-mode-switch">
     <button id="modeRect" class="active">▭ 矩形</button>
@@ -446,7 +445,7 @@
 
   // ====== 状态 ======
   const state = {
-    modelId: 'hijiki',
+    modelId: 'tororo',
     currentIdx: 0,
     regions: {},
     selectedId: null,
@@ -495,11 +494,10 @@
 
   function loadTexture(model) {
     state.modelId = model;
-    img.src = `/models/free-cats/${model === 'hijiki' ? 'Hijiki' : 'Tororo'}/moc/${model}.2048/texture_00.png`;
-    $('modelHijiki').style.cssText = model === 'hijiki' ? 'background:#06d6a0;border-color:#06d6a0;color:#1a1a2e;font-weight:600;' : '';
+    img.src = `/models/free-cats/Tororo/moc/tororo.2048/texture_00.png`;
     $('modelTororo').style.cssText = model === 'tororo' ? 'background:#06d6a0;border-color:#06d6a0;color:#1a1a2e;font-weight:600;' : '';
   }
-  loadTexture('hijiki');
+  loadTexture('tororo');
 
   img.onload = () => {
     hiddenCanvas.width = img.naturalWidth;
@@ -508,7 +506,7 @@
     renderAll();
   };
 
-  $('modelHijiki').onclick = () => switchModel('hijiki');
+  // 保留点击切换逻辑（虽然只剩一只猫，但用户可能想重新加载）
   $('modelTororo').onclick = () => switchModel('tororo');
   function switchModel(m) {
     if (Object.keys(state.regions).length > 0 && !confirm('切换会清空标注，确定？')) return;

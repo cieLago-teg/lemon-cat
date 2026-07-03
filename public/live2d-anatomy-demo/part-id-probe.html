@@ -48,7 +48,6 @@
   </div>
 
   <div class="row">
-    <button class="primary" onclick="dumpHijiki()">🐈‍⬛ 探测黑猫 Hijiki</button>
     <button class="primary" onclick="dumpTororo()">🐱 探测白猫 Tororo</button>
     <button onclick="copyJSON()">📋 复制 JSON</button>
     <button onclick="downloadJSON()">💾 下载 JSON</button>
@@ -62,7 +61,7 @@
   <script src="/live2d-anatomy-demo/lib/live2d.min.js"></script>
   <script>
     const BASE = '/models/free-cats';
-    const result = { hijiki: null, tororo: null };
+    const result = { tororo: null };
 
     function setStatus(msg, cls = '') {
       const el = document.getElementById('status');
@@ -110,7 +109,6 @@
       });
     }
 
-    async function dumpHijiki() { await dumpModel('hijiki', '🐈‍⬛ 黑猫 Hijiki'); }
     async function dumpTororo() { await dumpModel('tororo', '🐱 白猫 Tororo'); }
 
     async function dumpModel(modelId, label) {

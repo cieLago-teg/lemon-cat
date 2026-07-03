@@ -36,8 +36,7 @@
   </div>
 
   <div class="row">
-    <button class="primary" onclick="loadModel('hijiki')">🐈‍⬛ 显示黑猫</button>
-    <button class="primary" onclick="loadModel('tororo')">🐱 显示白猫</button>
+    <button class="primary" onclick="loadModel()">🐱 显示白猫 Tororo</button>
     <button onclick="downloadCurrent()">💾 下载 atlas_region_map.json</button>
     <div class="toggle">
       <label><input type="checkbox" id="showLabels" checked> 显标签</label>
@@ -85,14 +84,14 @@
     let currentData = null;
     let hidden = new Set();
 
-    async function loadModel(modelId) {
-      currentModel = modelId;
+    async function loadModel() {
+      currentModel = 'tororo';
       hidden = new Set();
       const tex = new Image();
       tex.crossOrigin = 'anonymous';
-      await new Promise((res, rej) => { tex.onload = res; tex.onerror = rej; tex.src = `/models/free-cats/${modelId === 'hijiki' ? 'Hijiki' : 'Tororo'}/moc/${modelId}.2048/texture_00.png`; });
+      await new Promise((res, rej) => { tex.onload = res; tex.onerror = rej; tex.src = `/models/free-cats/Tororo/moc/tororo.2048/texture_00.png`; });
 
-      const resp = await fetch(`/models/free-cats/${modelId === 'hijiki' ? 'Hijiki' : 'Tororo'}/moc/${modelId}.atlas_region_map.mapped.json`);
+      const resp = await fetch(`/models/free-cats/Tororo/moc/tororo.atlas_region_map.mapped.json`);
       currentData = await resp.json();
 
       draw(tex);
@@ -160,11 +159,11 @@
       if (visible) hidden.delete(part); else hidden.add(part);
       const tex = new Image();
       tex.onload = () => draw(tex);
-      tex.src = `/models/free-cats/${currentModel === 'hijiki' ? 'Hijiki' : 'Tororo'}/moc/${currentModel}.2048/texture_00.png?cb=${Date.now()}`;
+      tex.src = `/models/free-cats/Tororo/moc/tororo.2048/texture_00.png?cb=${Date.now()}`;
     }
 
-    document.getElementById('showBbox').onchange = () => { if (currentData) loadModel(currentModel); };
-    document.getElementById('showLabels').onchange = () => { if (currentData) loadModel(currentModel); };
+    document.getElementById('showBbox').onchange = () => { if (currentData) loadModel(); };
+    document.getElementById('showLabels').onchange = () => { if (currentData) loadModel(); };
 
     function downloadCurrent() {
       if (!currentData) return;
@@ -175,8 +174,8 @@
       a.click();
     }
 
-    // 自动加载 Hijiki
-    loadModel('hijiki');
+    // 自动加载白猫
+    loadModel();
   </script>
 </body>
 </html>

@@ -32,7 +32,6 @@
   </div>
 
   <div class="row">
-    <button class="primary" onclick="runHijiki()">🐈‍⬛ 生成黑猫 atlas</button>
     <button class="primary" onclick="runTororo()">🐱 生成白猫 atlas</button>
     <button onclick="downloadLatest()">💾 下载 atlas_region_map.json</button>
   </div>
@@ -72,7 +71,7 @@
       // 我们的 .moc 是 Cubism 2，pixi-live2d-display 默认支持 cubism 3
       // 但通过 Live2DModel.from 可以自动转换
       // 用 .model.json 文件让 PIXI 自动选择加载器
-      const modelUrl = `/models/free-cats/${modelId === 'hijiki' ? 'Hijiki' : 'Tororo'}/${modelId}.model.json`;
+      const modelUrl = `/models/free-cats/Tororo/tororo.model.json`;
 
       setStatus(`⏳ 加载模型 ${modelUrl}…`);
       let model;
@@ -158,7 +157,7 @@
 
       const result = {
         model: modelId,
-        texture: { width: 2048, height: 2048, path: `/models/free-cats/${modelId === 'hijiki' ? 'Hijiki' : 'Tororo'}/moc/${modelId}.2048/texture_00.png` },
+        texture: { width: 2048, height: 2048, path: `/models/free-cats/Tororo/moc/tororo.2048/texture_00.png` },
         generatedAt: new Date().toISOString(),
         method: 'Live2D SDK render-diff: setPartsOpacity(partId, 0) vs baseline',
         zoom: ZOOM,
@@ -189,7 +188,6 @@
       return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1, pixelCount: count };
     }
 
-    async function runHijiki() { await generateAtlas('hijiki'); }
     async function runTororo() { await generateAtlas('tororo'); }
 
     function downloadLatest() {

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>🔬 猫贴图查看器 · Live2D Texture Atlas</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    h1 { color: #ffd166; font-size: 22px; margin: 0 0 4px; }
+    .sub { color: #8b949e; font-size: 13px; margin-bottom: 16px; }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 1200px; margin: 0 auto; }
+
+    .panel {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .panel h3 {
+      margin: 0;
+      padding: 10px 14px;
+      background: #21262d;
+      font-size: 15px;
+      border-bottom: 1px solid #30363d;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .img-wrap {
+      position: relative;
+      overflow: auto;
+      max-height: 70vh;
+      cursor: zoom-in;
+      background:
+        linear-gradient(45deg, #1a1f2b 25%, transparent 25%),
+        linear-gradient(-45deg, #1a1f2b 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #1a1f2b 75%),
+        linear-gradient(-45deg, transparent 75%, #1a1f2b 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+    }
+    .img-wrap img {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      image-rendering: auto;
+    }
+    .img-wrap.zoomed img {
+      max-width: none;
+      width: 200%;
+    }
+    .img-wrap.zoomed { cursor: zoom-out; }
+
+    .meta {
+      padding: 10px 14px;
+      font-size: 12px;
+      color: #8b949e;
+      display: flex; gap: 16px; flex-wrap: wrap;
+      border-top: 1px solid #30363d;
+    }
+    .meta span { white-space: nowrap; }
+    .meta b { color: #c9d1d9; }
+
+    .legend {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-top: 16px;
+      max-width: 1200px; margin: 16px auto 0;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+    .legend h4 { color: #58a6ff; margin: 0 0 8px; font-size: 14px; }
+    .legend code {
+      background: #21262d;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #ffa657;
+    }
+    .tip {
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: rgba(210, 168, 0, 0.08);
+      border: 1px solid rgba(210, 168, 0, 0.2);
+      border-radius: 8px;
+      color: #e3b341;
+    }
+    .section-label {
+      position: absolute;
+      background: rgba(255,209,102,0.85);
+      color: #1a1a2e;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      pointer-events: none;
+      z-index: 1;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔬 Live2D 猫贴图查看器</h1>
+  <div class="sub">这就是 <code>.moc</code> 骨架外面裹的那张皮——展开成 2048×2048 的 UV 图</div>
+
+  <div class="grid">
+    <div class="panel">
+      <h3>🐱 Tororo (白猫) <span style="font-weight:400;font-size:12px;color:#8b949e">贴图 2048×2048 · 280 KB</span></h3>
+      <div class="img-wrap" id="wrap-tororo" onclick="this.classList.toggle('zoomed')">
+        <span class="section-label" style="top:10px;left:10px;">👆 点击放大/缩小</span>
+        <img src="/models/free-cats/Tororo/moc/tororo.2048/texture_00.png" alt="Tororo 贴图">
+      </div>
+      <div class="meta">
+        <span>📁 <b>tororo.2048/texture_00.png</b></span>
+        <span>📐 <b>2048 × 2048</b></span>
+        <span>💾 <b>280 KB</b></span>
+        <span>🎨 <b>RGBA (含透明通道)</b></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <h4>🧩 这份贴图是怎么工作的？</h4>
+    <p>
+      每个 Live2D 模型由两部分组成：<br>
+      1️⃣ <b>.moc 骨架</b>（183 KB）— 定义了猫的<em>形状</em>：脸的轮廓、耳朵的弯曲弧度、尾巴的摆动幅度<br>
+      2️⃣ <b>贴图 PNG</b>（280 KB）— 定义了猫的<em>颜色</em>：毛色、眼睛、鼻子、肉垫
+    </p>
+    <p>
+      你在互动页看到的会动的猫，原理是：<b>.moc 骨架不断变形 → 贴图被拉伸/弯曲贴合在骨架上 → 看起来像真的在动</b>。
+      这张 2048×2048 的大图就是一张"皮"，每个区域对应猫的不同身体部位（UV 映射）。
+    </p>
+    <p style="margin-bottom:4px;"><b>怎么换衣服（换贴图）：</b></p>
+    <ol style="margin:4px 0; padding-left:20px;">
+      <li>在这张 2048×2048 的画布上重新绘制颜色（换花纹、换眼睛颜色、换鼻子颜色）</li>
+      <li>替换 <code>texture_00.png</code> 文件</li>
+      <li>刷新页面 — 骨架不动，外观变了</li>
+      <li>⚠️ <b>不能改变形状</b>（UV 坐标焊死在 .moc 里），只能换颜色</li>
+    </ol>
+    <div class="tip">
+      💡 <b>简单换装方案：</b> 直接在白猫的贴图上重新画色就行。如果想画自己的猫皮肤：在这张 2048×2048 的图上涂色即可，保证不超出原有图案的边缘线就不会穿帮。
+    </div>
+  </div>
+
+  <script>
+    document.querySelectorAll('.img-wrap img').forEach(img => {
+      img.addEventListener('load', () => {
+        const meta = img.closest('.panel').querySelector('.meta');
+        const span = document.createElement('span');
+        span.innerHTML = '🔍 <b>点击图片放大/缩小</b>';
+        meta.appendChild(span);
+      });
+    });
+  </script>
+</body>
+</html>

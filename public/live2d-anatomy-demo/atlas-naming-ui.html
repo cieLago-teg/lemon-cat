@@ -54,8 +54,7 @@
   </div>
 
   <div class="row">
-    <button class="primary" onclick="loadModel('hijiki')">🐈‍⬛ 黑猫 Hijiki</button>
-    <button class="primary" onclick="loadModel('tororo')">🐱 白猫 Tororo</button>
+    <button class="primary" onclick="loadModel()">🐱 白猫 Tororo</button>
     <input id="filter" class="filter" placeholder="🔍 过滤：按名称/索引" oninput="renderGallery()">
     <button onclick="exportMap()">💾 导出 atlas_region_map.json</button>
     <button onclick="autoSave()">💾 自动保存到 localStorage</button>
@@ -110,19 +109,19 @@
     let names = {};              // index → { customName, partId }
     let texNaturalSize = { w: 2048, h: 2048 };
 
-    async function loadModel(modelId) {
-      currentModel = modelId;
+    async function loadModel() {
+      currentModel = 'tororo';
       // 从 localStorage 恢复
-      const saved = localStorage.getItem(`names_${modelId}`);
+      const saved = localStorage.getItem(`names_tororo`);
       names = saved ? JSON.parse(saved) : {};
       selectedIdx = null;
       // 加载 elements.json
-      const dir = `/models/free-cats/${modelId === 'hijiki' ? 'Hijiki' : 'Tororo'}/moc/elements`;
+      const dir = `/models/free-cats/Tororo/moc/elements`;
       const resp = await fetch(`${dir}/elements.json`);
       elements = (await resp.json()).elements;
       // 加载贴图
       const img = document.getElementById('texImg');
-      img.src = `/models/free-cats/${modelId === 'hijiki' ? 'Hijiki' : 'Tororo'}/moc/${modelId}.2048/texture_00.png`;
+      img.src = `/models/free-cats/Tororo/moc/tororo.2048/texture_00.png`;
       await new Promise(r => img.onload = r);
       texNaturalSize = { w: img.naturalWidth, h: img.naturalHeight };
       renderTexBoxes();
@@ -161,7 +160,7 @@
       const gal = document.getElementById('gallery');
       const filter = document.getElementById('filter').value.toLowerCase();
       gal.innerHTML = '';
-      const dir = `/models/free-cats/${currentModel === 'hijiki' ? 'Hijiki' : 'Tororo'}/moc/elements`;
+      const dir = `/models/free-cats/Tororo/moc/elements`;
       document.getElementById('elemCount').textContent = elements.length;
 
       elements.forEach((el) => {
