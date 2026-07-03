@@ -190,11 +190,11 @@
       names = saved ? JSON.parse(saved) : {};
       selectedIdx = null;
 
-      const resp = await fetch('/models/free-cats/Tororo/moc/elements/elements.json');
+      const resp = await fetch('../models/free-cats/Tororo/moc/elements/elements.json');
       elements = (await resp.json()).elements;
 
       const img = document.getElementById('texImg');
-      img.src = '/models/free-cats/Tororo/moc/tororo.2048/texture_00.png';
+      img.src = '../models/free-cats/Tororo/moc/tororo.2048/texture_00.png';
       await new Promise(r => img.onload = r);
       texNaturalSize = { w: img.naturalWidth, h: img.naturalHeight };
       renderTexBoxes();
@@ -233,7 +233,7 @@
       const gal = document.getElementById('gallery');
       const filter = document.getElementById('filter').value.toLowerCase();
       gal.innerHTML = '';
-      const dir = '/models/free-cats/Tororo/moc/elements';
+      const dir = '../models/free-cats/Tororo/moc/elements';
       document.getElementById('elemCount').textContent = elements.length;
 
       elements.forEach((el) => {
@@ -354,12 +354,12 @@
         });
 
         statusEl.innerHTML += '<br>⏳ 加载 Tororo 模型…';
-        l2dModel = await PIXI.live2d.Live2DModel.from('/models/free-cats/Tororo/tororo.model.json', {
+        l2dModel = await PIXI.live2d.Live2DModel.from('../models/free-cats/Tororo/tororo.model.json', {
           autoInteract: true, autoFocus: true,
         });
 
         // 全身显示：基于 atlas_region_map 的真实 bbox
-        const catBox = await fetch('/models/free-cats/Tororo/moc/tororo.atlas_region_map.json')
+        const catBox = await fetch('../models/free-cats/Tororo/moc/tororo.atlas_region_map.json')
           .then(r => r.json()).then(data => {
             let minX=1e9, minY=1e9, maxX=0, maxY=0;
             for (const b of data.blocks) {
