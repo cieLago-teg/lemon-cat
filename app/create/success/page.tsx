@@ -68,7 +68,8 @@ function InnerCreateSuccessPage() {
   const currentMorph =
     archive?.results?.[Math.max(0, Math.min(archive.currentMorphIndex ?? 0, (archive.results ?? []).length - 1))];
   const pixelPreviewUrl =
-    archive?.pixelPet?.previewUrl || (archive?.spriteSetUrl ? `/api/pixel-pet/image/${archive.id}` : null);
+    (archive as unknown as { pixelPet?: { previewUrl?: string } })?.pixelPet?.previewUrl ||
+    (archive?.spriteSetUrl ? `/api/pixel-pet/image/${archive.id}` : null);
 
   // Step 6.2：把 8 字段档案转成一句"特性描述"，显示在档案卡里
   const traitSentence = archive
