@@ -45,10 +45,27 @@ export interface PetArchive {
     style: string;
     imageUrl: string;
     videoUrl?: string;
+    // 2026-07-15 Step 6.2：8 方向手绘视频播放列表（m3u8 / 外部源数组）。
+    // 召唤桌宠时 Electron 按方向切换播放。允许 null（未生成）。
+    videoPlaylist?: string | string[] | null;
     prompt?: string;
     createdAt?: number;
     feedback?: { tags: string[]; note: string } | null;
   }[];
+  // 2026-07-15 Step 6.2：8 方向像素宠精灵图集相对路径（Railway 部署兼容性补丁）。
+  // 老数据 normalize 时若缺失则置 null（页面有兜底判断）。
+  spriteSetUrl?: string | null;
+  // 2026-07-15 Step 6.2：像素宠档案元数据（调色板 / 模板 / 预览图 URL）。
+  // 由 /api/pixel-pet/* 写入；老数据可能缺失。允许 null。
+  pixelPet?: {
+    template?: string;
+    primaryColor?: string;
+    secondaryColor?: string;
+    previewUrl?: string;
+    generatedAt?: number;
+    // 2026-07-15：原始召唤风格标签（"简约可爱水墨风" 等），老数据可能缺失。
+    sourceStyle?: string;
+  } | null;
   sourceImage?: { mimeType: string; ext: string };
 }
 

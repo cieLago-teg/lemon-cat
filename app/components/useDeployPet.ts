@@ -29,6 +29,13 @@ export type DeployOptions = {
   imageUrl: string;
   // 已有视频时可省略动画步骤
   videoUrl?: string | null;
+  // 2026-07-15 Step 6.2：可选手绘 8 方向视频播放列表（m3u8/外部视频源），
+  // 由 /create/success 页面传入，Electron 桌宠按方向切换播放。允许 null。
+  videoPlaylist?: string | string[] | null;
+  // 2026-07-15 Step 6.2：被部署的档案 id（Electron 桌宠 config 写入用）。允许 undefined。
+  archiveId?: string;
+  // 2026-07-15 Step 6.2：召唤模式（"playlist" = 用预生成视频列表；其他 = 走 i2v 生成）。
+  mode?: string;
   // 可选：自定义 prompt 注入（一般不用，server 会按 style 自动拼）
   style?: string;
 };
