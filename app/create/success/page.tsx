@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { PetArchive } from "@/lib/db/archive-types";
@@ -16,10 +16,22 @@ import { DeployProgressBar } from "@/app/components/DeployProgressBar";
 
 type ArchiveApiResp = { archive?: PetArchive; error?: string };
 
+// 2026-07-15: Next.js 15 要求 useSearchParams 包在 Suspense 里，
+//   否则 build 阶段 prerender 会报 "missing-suspense-with-csr-bailout"。
+//   拆出 InnerCreateSuccessPage 让外层 default export 包 Suspense.
 export default function CreateSuccessPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-stone-500">加载中…</div>}>
+      <InnerCreateSuccessPage />
+    </Suspense>
+  );
+}
+
+function InnerCreateSuccessPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = searchParams.get("id") ?? "";
+  const mode = searchParams.get("mode") ?? "";
   const [archive, setArchive] = useState<PetArchive | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -55,6 +67,8 @@ export default function CreateSuccessPage() {
 
   const currentMorph =
     archive?.results?.[Math.max(0, Math.min(archive.currentMorphIndex ?? 0, (archive.results ?? []).length - 1))];
+  const pixelPreviewUrl =
+    archive?.pixelPet?.previewUrl || (archive?.spriteSetUrl ? `/api/pixel-pet/image/${archive.id}` : null);
 
   // Step 6.2：把 8 字段档案转成一句"特性描述"，显示在档案卡里
   const traitSentence = archive
@@ -78,23 +92,13 @@ export default function CreateSuccessPage() {
     try {
       const deployResult = await deploy({
         imageUrl: currentMorph.imageUrl,
+        videoPlaylist: currentMorph.videoPlaylist || null,
         videoUrl: currentMorph.videoUrl || null,
-        style: currentMorph.style
+        style: currentMorph.style,
+        archiveId: archive.id,
+        mode: "playlist"
       });
       if (deployResult.ok) {
-        if (deployResult.videoUrl && !currentMorph.videoUrl) {
-          const persistVideo = await fetch(`/api/archive/${archive.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              morph: { style: currentMorph.style, action: "setVideo", videoUrl: deployResult.videoUrl }
-            })
-          });
-          if (persistVideo.ok) {
-            const persisted = await persistVideo.json();
-            if (persisted?.archive) setArchive(persisted.archive);
-          }
-        }
         const now = Date.now();
         const patch = await fetch(`/api/archive/${archive.id}`, {
           method: "PATCH",
@@ -145,7 +149,9 @@ export default function CreateSuccessPage() {
       <SuccessCSS />
 
       <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col items-center justify-center px-6 py-10">
-        <p className="success-rise text-sm font-medium text-amber-600">🐾 它的数字形态已生成</p>
+        <p className="success-rise text-sm font-medium text-amber-600">
+          {mode === "pixel" ? "🧩 像素宠物已生成" : "🐾 它的数字形态已生成"}
+        </p>
         <h1 className="success-rise mt-2 text-4xl font-semibold text-amber-900" style={{ animationDelay: "0.1s" }}>
           诞生时刻
         </h1>
@@ -174,6 +180,36 @@ export default function CreateSuccessPage() {
               {currentMorph?.style ?? "默认形态"} · {archive.petName}
             </div>
           </div>
+
+          {pixelPreviewUrl && (
+            <div
+              className="success-fade mt-4 rounded-3xl border border-amber-200 bg-white/85 p-4 shadow-xl"
+              style={{ animationDelay: "0.4s" }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-amber-500">像素宠物预览</p>
+                  <p className="mt-1 text-sm text-amber-800">
+                    {archive.pixelPet?.template === "tabby"
+                      ? "狸花模板"
+                      : archive.pixelPet?.template === "tuxedo"
+                        ? "奶牛模板"
+                        : "纯色模板"}
+                    {archive.pixelPet?.sourceStyle ? ` · 基于 ${archive.pixelPet.sourceStyle}` : ""}
+                  </p>
+                </div>
+                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800">
+                  4 向 sprite
+                </span>
+              </div>
+              <div className="mt-3 rounded-2xl bg-amber-50/70 p-3">
+                <img src={pixelPreviewUrl} alt={`${archive.petName} 像素宠物预览`} className="mx-auto h-24 w-auto object-contain" />
+              </div>
+              <p className="mt-2 text-xs text-amber-700/80">
+                这就是写回档案的真实像素产物，不再是旧测试图。
+              </p>
+            </div>
+          )}
 
           {/* 右页：档案卡（轻微上浮） */}
           <div
@@ -253,7 +289,7 @@ export default function CreateSuccessPage() {
               </div>
               <button
                 type="button"
-                onClick={() => router.push(`/pets/${archive.id}`)}
+                onClick={() => router.push("/pets")}
                 className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-amber-300 bg-white px-4 py-2.5 text-sm font-semibold text-amber-800 shadow-sm transition-colors hover:bg-amber-50"
               >
                 📁 查看档案

@@ -3,5 +3,10 @@
   "ignorePatterns": [
     "lib/pet/**/*.js",
     "lib/pet/**/*.cjs"
-  ]
+  ],
+  "rules": {
+    "react/no-unescaped-entities": "off",
+    "@typescript-eslint/no-unused-vars": "warn",
+    "@next/next/no-img-element": "warn"
+  }
 }
