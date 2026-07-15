@@ -213,7 +213,11 @@ async function runJobForTask(
     let finalSourceUrl = ctx.sourceImageUrl;
     if (finalSourceUrl.startsWith("/") || finalSourceUrl.includes("localhost")) {
       const { bytes, contentType } = await fetchImageBuffer(finalSourceUrl, ctx.requestUrl);
-      finalSourceUrl = `data:${contentType};base64,${bytes.toString("base64")}`;
+      // 2026-07-15 Step 6.2：wan2.6 i2v 异步任务不接受 data: URL，
+      // 必须用 oss:// 协议或公网 https URL。先上传到阿里云 OSS 拿公网 URL。
+      const { uploadImageToOss } = await import("@/lib/pet/oss-upload.js");
+      const model = process.env.DASHSCOPE_VIDEO_MODEL || "wan2.6-i2v-flash";
+      finalSourceUrl = await uploadImageToOss(apiKey, bytes, contentType, model);
     }
 
     const upstreamUrl = await generateWithDashscope(
