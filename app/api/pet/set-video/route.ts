@@ -91,6 +91,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "只支持 MP4/WebM 视频部署" }, { status: 400 });
   }
 
+  // 2026-07-15 Step 6.2：检测 Railway 部署环境。在 Railway 上没有桌面环境，
+  // Electron 永远起不来，且容器内文件系统不持久（重启即丢），写本地文件
+  // 没意义。直接透传 videoUrl 给前端，让前端在网页里用 <video> 循环播放。
+  const isRailway = Boolean(process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RAILWAY_ENVIRONMENT);
+  if (isRailway) {
+    // rawVideoUrl 是相对路径（如 /pet-videos/xxx.mp4），拼成完整公网 URL 返回
+    const playbackUrl = rawVideoUrl.startsWith("/")
+      ? new URL(rawVideoUrl, request.url).toString()
+      : rawVideoUrl;
+    return NextResponse.json({
+      ok: true,
+      shellLaunched: false,
+      fileName: null,
+      playbackUrl,
+      mode: "browser"
+    });
+  }
+
   const bytes = Buffer.from(await videoResponse.arrayBuffer());
   if (bytes.length === 0) {
     return NextResponse.json({ error: "视频为空" }, { status: 400 });

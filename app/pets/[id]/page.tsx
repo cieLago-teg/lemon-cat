@@ -44,7 +44,7 @@ export default function PetDetailPage() {
   // 召唤状态
   const [deploying, setDeploying] = useState(false);
   // 2026-06-12: 召唤到桌面只走视频，没有 videoUrl 就触发动画生成，全程显示真实进度。
-  const { progress: deployProgress, error: deployError, deploy, usedCachedVideo } = useDeployPet();
+  const { progress: deployProgress, error: deployError, deploy, usedCachedVideo, playbackUrl } = useDeployPet();
   // 主视觉切换：原图 / 当前数字形象
   const [heroMode, setHeroMode] = useState<"morph" | "source">("morph");
 
@@ -327,6 +327,7 @@ export default function PetDetailPage() {
             onSetCurrent={setCurrentMorph}
             onDelete={deleteMorph}
             onFeedback={openFeedback}
+            playbackUrl={playbackUrl}
           />
 
           {/* 右：召唤 + 次操作（无卡片框） */}
@@ -461,7 +462,8 @@ function CenterHeroPanel({
   onHeroModeChange,
   onSetCurrent,
   onDelete,
-  onFeedback
+  onFeedback,
+  playbackUrl
 }: {
   archive: PetArchive;
   heroMode: "morph" | "source";
@@ -469,6 +471,8 @@ function CenterHeroPanel({
   onSetCurrent: (style: string) => void;
   onDelete: (style: string) => void;
   onFeedback: (style: string) => void;
+  // 2026-07-15 Step 6.2：Railway 部署环境下，召唤成功后变成循环视频。
+  playbackUrl?: string | null;
 }) {
   const results = archive.results ?? [];
   const currentIdx = Math.max(0, Math.min(archive.currentMorphIndex ?? 0, results.length - 1));
@@ -484,11 +488,23 @@ function CenterHeroPanel({
       {/* 大图：让宠物成为最大元素 */}
       <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-amber-100/60 shadow-xl shadow-amber-900/5">
         {heroMode === "morph" && currentMorph ? (
-          <img
-            src={currentMorph.imageUrl}
-            alt="当前数字形象"
-            className="h-full w-full object-contain p-4"
-          />
+          playbackUrl ? (
+            <video
+              src={playbackUrl}
+              autoPlay
+              loop
+              muted
+              playsInline
+              controls
+              className="h-full w-full object-contain p-4"
+            />
+          ) : (
+            <img
+              src={currentMorph.imageUrl}
+              alt="当前数字形象"
+              className="h-full w-full object-contain p-4"
+            />
+          )
         ) : archive.sourceImage ? (
           <img
             src={`/api/archive/image/${archive.id}`}

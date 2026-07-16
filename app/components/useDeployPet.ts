@@ -55,6 +55,10 @@ export type DeployState = {
   pollRef: { timer: ReturnType<typeof setInterval> | null; taskId: string | null };
   // 召唤中（点击召唤按钮后到结束期间）
   deploying: boolean;
+  // 2026-07-15 Step 6.2：Railway 部署环境下，set-video 返回的浏览器内播放 URL。
+  // 公网用户召唤成功后，前端用此 URL 渲染 <video autoPlay loop> 给评审看。
+  // 本机 dev 环境为 null（桌宠直接出现在本地桌面）。
+  playbackUrl: string | null;
 };
 
 const INITIAL: DeployProgress = { stage: "idle", percent: 0, message: "准备就绪", fraction: 0 };
@@ -65,6 +69,7 @@ export function useDeployPet() {
   const [hint, setHint] = useState("");
   const [deploying, setDeploying] = useState(false);
   const [usedCachedVideo, setUsedCachedVideo] = useState(false);
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
   const pollRef = useRef<{ timer: ReturnType<typeof setInterval> | null; taskId: string | null }>({
     timer: null,
     taskId: null
@@ -136,6 +141,7 @@ export function useDeployPet() {
     }
     setError("");
     setHint("");
+    setPlaybackUrl(null);
     abortedRef.current = false;
     setDeploying(true);
     setStage("animating", 5, "已提交到 Wan 队列");
@@ -179,11 +185,18 @@ export function useDeployPet() {
         throw new Error(deployData?.error || `投放失败 (${deployRes.status})`);
       }
       setUsedCachedVideo(usedCachedVideo);
+      // 2026-07-15 Step 6.2：Railway 部署环境下 set-video 返回 playbackUrl，
+      // 前端拿到后用 <video> 标签循环播放。本机 dev 环境为 null（Electron 已起）。
+      if (deployData?.playbackUrl) {
+        setPlaybackUrl(String(deployData.playbackUrl));
+      }
       setStage("done", 100, "它已经出现在桌面啦");
       setHint(
         deployData?.shellLaunched
           ? "🛋️ 桌宠壳已响应"
-          : "已写入形态（如未弹出窗口，请运行 npm run dev:pet-shell）"
+          : deployData?.playbackUrl
+            ? "🎬 视频已就绪，正在循环播放"
+            : "已写入形态（如未弹出窗口，请运行 npm run dev:pet-shell）"
       );
       return { ok: true, videoUrl, usedCachedVideo };
     } catch (e) {
@@ -200,7 +213,8 @@ export function useDeployPet() {
     setError("");
     setHint("");
     setDeploying(false);
+    setPlaybackUrl(null);
   }
 
-  return { progress, error, hint, deploying, deploy, reset, usedCachedVideo };
+  return { progress, error, hint, deploying, deploy, reset, usedCachedVideo, playbackUrl };
 }

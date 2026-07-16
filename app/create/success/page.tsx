@@ -38,7 +38,7 @@ function InnerCreateSuccessPage() {
   const [summoning, setSummoning] = useState(false);
   const [hint, setHint] = useState("");
   // 2026-06-12: 召唤到桌面只走视频，没有 videoUrl 就触发动画生成，全程显示真实进度。
-  const { progress: deployProgress, error: deployError, hint: deployHint, deploy, usedCachedVideo } = useDeployPet();
+  const { progress: deployProgress, error: deployError, hint: deployHint, deploy, usedCachedVideo, playbackUrl } = useDeployPet();
 
   useEffect(() => {
     if (!id) {
@@ -169,11 +169,23 @@ function InnerCreateSuccessPage() {
           >
             <div className="success-glow pointer-events-none absolute inset-0" aria-hidden />
             {currentMorph ? (
-              <img
-                src={currentMorph.imageUrl}
-                alt={archive.petName}
-                className="relative h-80 w-full object-contain"
-              />
+              playbackUrl ? (
+                <video
+                  src={playbackUrl}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  controls
+                  className="relative h-80 w-full object-contain"
+                />
+              ) : (
+                <img
+                  src={currentMorph.imageUrl}
+                  alt={archive.petName}
+                  className="relative h-80 w-full object-contain"
+                />
+              )
             ) : (
               <div className="grid h-80 place-items-center text-amber-400">🐾 暂无形态</div>
             )}
