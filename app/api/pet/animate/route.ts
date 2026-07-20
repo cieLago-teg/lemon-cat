@@ -102,8 +102,13 @@ async function fetchImageBuffer(sourceUrl: string, requestUrl: string) {
     }
   }
 
-  // 2. 如果不是本地档案图，或者文件不存在，回退到网络请求
-  const target = sourceUrl.startsWith("/") ? new URL(sourceUrl, requestUrl).toString() : sourceUrl;
+  // 2. 如果不是本地档案图，或者文件不存在，回退到网络请求。
+  // 严禁用 new URL(sourceUrl, requestUrl)，requestUrl 在 Railway 反代下会
+  // 变成 https://localhost:PORT，反而触发 SSL 错误。统一用 http loopback。
+  const port = process.env.PORT || "8080";
+  const target = sourceUrl.startsWith("/")
+    ? `http://127.0.0.1:${port}${sourceUrl}`
+    : sourceUrl;
   const response = await fetch(target);
   if (!response.ok) {
     throw new Error(`参考图下载失败 (${response.status})`);
