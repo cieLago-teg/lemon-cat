@@ -442,37 +442,44 @@ function InnerCreateSuccessPage() {
                 不阻挡其他内容点击。这是 Electron 桌宠的网页等价物。
               </p>
             </div>
-            <div className="rounded-xl border-2 border-rose-300 bg-rose-50/80 p-4 shadow-sm">
-              <p className="font-semibold text-rose-900">🛑 评委请先看（必读）</p>
-              <p className="mt-1 text-rose-900/90">
+            <div className="rounded-xl border-2 border-amber-500 bg-gradient-to-br from-amber-50 to-amber-100/80 p-4 shadow-md ring-1 ring-amber-400/30">
+              <p className="font-semibold text-amber-900">📌 评委请先看</p>
+              <p className="mt-1 text-amber-900/90">
                 <span className="font-semibold">「完整版桌宠」是一个 Electron 桌面应用</span>，
                 <span className="font-semibold">不是网站</span>。它需要在你自己的电脑上
                 <span className="font-semibold">安装并运行</span>才能体验透明背景、Live2D 实时驱动、
                 鼠标穿透、全局快捷键这些完整功能。
               </p>
-              <p className="mt-1 text-rose-900/90">
+              <p className="mt-1 text-amber-900/90">
                 在浏览器里打开{" "}
-                <code className="rounded bg-white/70 px-1 py-0.5 text-xs">lemoncat.cielago.com</code>{" "}
+                <code className="rounded bg-white/80 px-1 py-0.5 font-mono text-xs text-amber-900">
+                  lemoncat.cielago.com
+                </code>{" "}
                 看到的只是<span className="font-semibold">「网页版」</span>（杂志感档案 + 透明可拖动视频），
                 <span className="font-semibold">不是完整桌宠体验</span>。
               </p>
+              {/* 必读角标 — 右上角小徽章，用 amber-700 底 + 浅 amber 字，仍然是
+                  整页主色调，但跟其他 amber-200 边框卡区分开。 */}
+              <span className="absolute right-3 top-3 inline-block rounded-md bg-amber-700 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-50 shadow-sm">
+                必读
+              </span>
             </div>
 
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4">
-              <p className="font-semibold text-emerald-900">🖥️ 完整版桌宠（需要本地运行）</p>
-              <p className="mt-1 text-emerald-900/90">
+            <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+              <p className="font-semibold text-amber-900">🖥️ 完整版桌宠（需要本地运行）</p>
+              <p className="mt-1 text-amber-800/90">
                 真正的桌宠是一个 Electron 桌面应用，支持：
               </p>
-              <ul className="mt-1 list-inside list-disc space-y-0.5 pl-1 text-emerald-900/90">
+              <ul className="mt-1 list-inside list-disc space-y-0.5 pl-1 text-amber-800/90">
                 <li>透明背景窗口 + 鼠标穿透（<code className="rounded bg-white/70 px-1 py-0.5 text-xs">Ctrl+Alt+Shift+T</code> 切换）</li>
                 <li>Live2D 实时驱动（眨眼、呼吸、对鼠标方向敏感）</li>
                 <li>全键盘快捷键（<code className="rounded bg-white/70 px-1 py-0.5 text-xs">Ctrl+Alt+Shift+D</code> 打开 DevTools，<code className="rounded bg-white/70 px-1 py-0.5 text-xs">Ctrl+Alt+Shift+Q</code> 退出）</li>
                 <li>8 方向 sprite 动画（鼠标拖到窗口边缘自动切换方向）</li>
               </ul>
-              <p className="mt-2 text-emerald-900/90">
+              <p className="mt-2 text-amber-800/90">
                 本地启动方式（需 Node.js 18+）：
               </p>
-              <pre className="mt-1 overflow-x-auto rounded-lg bg-emerald-900/90 p-3 font-mono text-xs text-emerald-50">
+              <pre className="mt-1 overflow-x-auto rounded-lg bg-amber-900/95 p-3 font-mono text-xs text-amber-50">
 {`git clone https://github.com/cieLago-teg/lemon-cat.git
 cd lemon-cat
 npm install
