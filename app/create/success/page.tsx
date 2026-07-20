@@ -408,6 +408,77 @@ function InnerCreateSuccessPage() {
         <p className="success-fade mt-8 text-xs text-amber-600" style={{ animationDelay: "0.7s" }}>
           后续可以在「桌面陪伴」里为它选择陪伴模式 🛋️
         </p>
+
+        {/* 2026-07-20：网页版 vs 完整 Electron 桌宠说明。
+            Railway 是云端无桌面环境，没法在你电脑桌面弹窗口。
+            网页版（右下角浮动视频）是网页等价物；想看完整 Live2D + 透明
+            穿透 + 全局快捷键，需要在本地跑 npm run dev:pet-shell。 */}
+        <details
+          className="success-fade mt-6 w-full overflow-hidden rounded-2xl border border-amber-200 bg-white/80 shadow-md backdrop-blur"
+          style={{ animationDelay: "0.8s" }}
+        >
+          <summary className="cursor-pointer select-none px-5 py-3 text-sm font-medium text-amber-800 hover:bg-amber-50/60">
+            🛋️ 关于「桌面宠物」—— 为什么我电脑桌面没弹窗口？
+          </summary>
+          <div className="space-y-3 px-5 pb-5 pt-1 text-sm leading-relaxed text-amber-900/90">
+            <p>
+              <span className="font-semibold">你访问的是公网网站</span>（
+              <a
+                href="https://lemoncat.cielago.com"
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-amber-700 underline decoration-amber-300 underline-offset-2 hover:text-amber-900"
+              >
+                lemoncat.cielago.com
+              </a>
+              ），网站只能控制你<span className="font-semibold">浏览器</span>，不能控制你电脑桌面。
+              所以点「召唤到桌面」不会真的在你电脑桌面弹窗口——
+              <span className="font-semibold">这是所有网站都无法做到的物理限制</span>，跟代码无关。
+            </p>
+            <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4">
+              <p className="font-semibold text-amber-900">✨ 你现在看到的是「网页版桌宠」</p>
+              <p className="mt-1 text-amber-800/90">
+                召唤完成后，右下角会出现一只透明背景的小猫视频，可以拖到屏幕任何位置，永远在最上层，
+                不阻挡其他内容点击。这是 Electron 桌宠的网页等价物。
+              </p>
+            </div>
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4">
+              <p className="font-semibold text-emerald-900">🖥️ 完整版桌宠（需要本地运行）</p>
+              <p className="mt-1 text-emerald-900/90">
+                真正的桌宠是一个 Electron 桌面应用，支持：
+              </p>
+              <ul className="mt-1 list-inside list-disc space-y-0.5 pl-1 text-emerald-900/90">
+                <li>透明背景窗口 + 鼠标穿透（<code className="rounded bg-white/70 px-1 py-0.5 text-xs">Ctrl+Alt+Shift+T</code> 切换）</li>
+                <li>Live2D 实时驱动（眨眼、呼吸、对鼠标方向敏感）</li>
+                <li>全键盘快捷键（<code className="rounded bg-white/70 px-1 py-0.5 text-xs">Ctrl+Alt+Shift+D</code> 打开 DevTools，<code className="rounded bg-white/70 px-1 py-0.5 text-xs">Ctrl+Alt+Shift+Q</code> 退出）</li>
+                <li>8 方向 sprite 动画（鼠标拖到窗口边缘自动切换方向）</li>
+              </ul>
+              <p className="mt-2 text-emerald-900/90">
+                本地启动方式：
+              </p>
+              <pre className="mt-1 overflow-x-auto rounded-lg bg-emerald-900/90 p-3 font-mono text-xs text-emerald-50">
+{`git clone https://github.com/cieLago-teg/lemon-cat.git
+cd lemon-cat
+npm install
+npm run dev:pet-shell`}
+              </pre>
+            </div>
+            <p className="text-xs text-amber-700/80">
+              💡 给评委展示时建议双管齐下：<br />
+              · 先打开{" "}
+              <a
+                href="https://lemoncat.cielago.com"
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-amber-700 underline decoration-amber-300 underline-offset-2 hover:text-amber-900"
+              >
+                lemoncat.cielago.com
+              </a>{" "}
+              看网页版完整流程（杂志感档案 + 透明拖动视频）<br />
+              · 再用 1-2 分钟本地录屏展示完整 Electron 桌宠（Live2D + 透明穿透 + 快捷键）
+            </p>
+          </div>
+        </details>
       </main>
 
       {/* 2026-07-20：网页版桌宠 — 透明背景 + 可拖动 + 永远顶层。
