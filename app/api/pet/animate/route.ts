@@ -270,6 +270,17 @@ async function runJobForTask(
       finalSourceUrl,
       onStatus
     );
+
+    // 2026-07-20：Railway 部署环境下，DashScope 返回的 upstreamUrl 本身就是
+    // 公网 OSS 永久 URL（https://*.aliyuncs.com/...）。容器不持久化（每次
+    // push 触发重启，public/pet-videos/ 全部丢失），所以不要下载到本地，
+    // 直接把 upstreamUrl 存到 archive / tracker。前端 <video> 直接播这个 URL。
+    const isRailwayJob = Boolean(process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RAILWAY_ENVIRONMENT);
+    if (isRailwayJob) {
+      tracker.setSucceeded(taskId, { videoUrl: upstreamUrl });
+      return;
+    }
+
     const localVideoUrl = await saveVideoToPublic(upstreamUrl, "dashscope_wan");
 
     let finalVideoUrl = localVideoUrl;
@@ -385,6 +396,19 @@ export async function POST(request: Request) {
       prompt,
       finalSourceUrl
     );
+
+    // 2026-07-20：Railway 路径下直接返回公网 upstreamUrl（参见 runJobForTask
+    // 注释：容器不持久化，不要把视频下载到 public/pet-videos/）。
+    const isRailwayLegacy = Boolean(process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RAILWAY_ENVIRONMENT);
+    if (isRailwayLegacy) {
+      return NextResponse.json({
+        ok: true,
+        provider: ANIMATION_PROVIDER_ID,
+        prompt,
+        videoUrl: upstreamUrl
+      });
+    }
+
     let localVideoUrl = await saveVideoToPublic(upstreamUrl, "dashscope_wan");
 
     // Process Matting on the generated video

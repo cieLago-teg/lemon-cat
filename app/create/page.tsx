@@ -297,7 +297,9 @@ export default function HomePage() {
     setDeployed("none");
     const deployResult = await deploy({
       imageUrl: target.imageUrl,
-      videoUrl: target.videoUrl || animState.videoUrl || null,
+      // 2026-07-20：只用当前 morph 的 videoUrl 复用。不读 animState.videoUrl，
+      // 否则切换 morph 后会把上一个 morph 的视频误显示给新 morph。
+      videoUrl: target.videoUrl || null,
       style: target.style
     });
     if (deployResult.ok) {
