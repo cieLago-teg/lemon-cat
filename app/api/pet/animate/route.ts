@@ -16,6 +16,48 @@ const { resolveDashscopeVideoBaseUrl } = dashscopeVideoConfigModule as {
   resolveDashscopeVideoBaseUrl: (env: Record<string, unknown>) => string;
 };
 
+// 2026-07-15 Step 6.2：i2v 任务用 undici fetch + 60s dispatcher。
+// 跟 lib/bailian.ts 一致，避免 DNS 冷启动时 Node 内置 fetch hang。
+import { fetch as undiciFetch, Agent as UndiciAgent } from "undici";
+import { getDashscopeAgent } from "@/lib/bailian";
+
+async function dashscopeFetch(
+  url: string,
+  init: { method?: string; headers?: Record<string, string>; body?: unknown; asyncFlag?: boolean } = {}
+): Promise<{ status: number; ok: boolean; text: string; json: () => unknown }> {
+  const headers: Record<string, string> = {
+    ...(init.headers || {})
+  };
+  if (init.body && !headers["Content-Type"] && !headers["content-type"]) {
+    headers["Content-Type"] = "application/json";
+  }
+  if (init.asyncFlag) {
+    headers["X-DashScope-Async"] = "enable";
+  }
+  const response = (await (undiciFetch as unknown as (
+    url: string,
+    init: { method: string; headers: Record<string, string>; body?: string; dispatcher: UndiciAgent }
+  ) => Promise<{ status: number; ok: boolean; text: () => Promise<string> }>)(url, {
+    method: init.method || "GET",
+    headers,
+    body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+    dispatcher: getDashscopeAgent()
+  })) as unknown as { status: number; ok: boolean; text: () => Promise<string> };
+  const text = await response.text();
+  let parsed: unknown = null;
+  try {
+    parsed = text ? JSON.parse(text) : null;
+  } catch {
+    parsed = null;
+  }
+  return {
+    status: response.status,
+    ok: response.ok,
+    text,
+    json: () => parsed
+  };
+}
+
 import { mattingVideo } from "@/lib/pet/rvm-matting.js";
 import { buildIdlePrompt as buildIdlePromptWithStyle } from "@/lib/pet/animation-prompt.js";
 import { createAnimationTracker } from "@/lib/pet/animation-tracker.js";
@@ -84,12 +126,11 @@ function getDashscopeBaseUrl() {
 async function pollDashscopeTask(taskId: string, apiKey: string, onStatus?: (s: string) => void) {
   const taskUrl = `${getDashscopeBaseUrl().replace(/\/$/, "")}/tasks/${taskId}`;
   for (let attempt = 0; attempt < 60; attempt += 1) {
-    const response = await fetch(taskUrl, {
-      headers: {
-        Authorization: `Bearer ${apiKey}`
-      }
+    const result = await dashscopeFetch(taskUrl, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${apiKey}` }
     });
-    const payload = (await response.json()) as {
+    const payload = result.json() as {
       output?: {
         task_status?: string;
         message?: string;
@@ -97,29 +138,29 @@ async function pollDashscopeTask(taskId: string, apiKey: string, onStatus?: (s: 
         video_url?: string;
       };
       message?: string;
-    };
-    if (!response.ok) {
-      throw new Error(payload?.message || `Wan 查询失败 (${response.status})`);
+    } | null;
+    if (!result.ok) {
+      throw new Error((payload && payload.message) || `Wan 查询失败 (${result.status})`);
     }
-    const status = payload.output?.task_status;
+    const status = payload?.output?.task_status;
     if (typeof onStatus === "function") {
       try { onStatus(status || "Unknown"); } catch { /* ignore */ }
     }
     if (status === "SUCCEEDED") {
-      const results = payload.output?.results;
+      const results = payload?.output?.results;
       if (Array.isArray(results)) {
         const hit = results.find((item) => typeof item?.video_url === "string");
         if (hit?.video_url) return hit.video_url;
       } else if (results && typeof results === "object" && typeof results.video_url === "string") {
         return results.video_url;
       }
-      if (typeof payload.output?.video_url === "string") {
+      if (typeof payload?.output?.video_url === "string") {
         return payload.output.video_url;
       }
       throw new Error("Wan 未返回视频地址");
     }
     if (status === "FAILED" || status === "CANCELED") {
-      throw new Error(payload.output?.message || payload.message || "Wan 动画生成失败");
+      throw new Error((payload && (payload.output?.message || payload.message)) || "Wan 动画生成失败");
     }
     await new Promise((resolve) => setTimeout(resolve, 3000));
   }
@@ -132,14 +173,11 @@ async function generateWithDashscope(
   sourceImageUrl: string,
   onStatus?: (s: string) => void
 ) {
-  const response = await fetch(`${getDashscopeBaseUrl().replace(/\/$/, "")}/services/aigc/video-generation/video-synthesis`, {
+  const syncUrl = `${getDashscopeBaseUrl().replace(/\/$/, "")}/services/aigc/video-generation/video-synthesis`;
+  const result = await dashscopeFetch(syncUrl, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "X-DashScope-Async": "enable"
-    },
-    body: JSON.stringify({
+    asyncFlag: true,
+    body: {
       model: process.env.DASHSCOPE_VIDEO_MODEL || "wan2.6-i2v-flash",
       input: {
         prompt,
@@ -151,23 +189,24 @@ async function generateWithDashscope(
         prompt_extend: true,
         audio: false
       }
-    })
+    },
+    headers: { Authorization: `Bearer ${apiKey}` }
   });
-  const payload = (await response.json()) as {
+  const payload = result.json() as {
     output?: { task_id?: string; task_status?: string; results?: { video_url?: string } };
     message?: string;
-  };
-  if (!response.ok) {
-    throw new Error(payload?.message || `Wan 请求失败 (${response.status})`);
+  } | null;
+  if (!result.ok) {
+    throw new Error((payload && payload.message) || `Wan 请求失败 (${result.status})`);
   }
 
-  if (payload.output?.task_status === "SUCCEEDED" && payload.output?.results?.video_url) {
+  if (payload?.output?.task_status === "SUCCEEDED" && payload?.output?.results?.video_url) {
     if (typeof onStatus === "function") {
       try { onStatus("SUCCEEDED"); } catch { /* ignore */ }
     }
     return payload.output.results.video_url;
   }
-  if (!payload.output?.task_id) {
+  if (!payload?.output?.task_id) {
     throw new Error("Wan 未返回任务 ID");
   }
   return pollDashscopeTask(payload.output.task_id, apiKey, onStatus);

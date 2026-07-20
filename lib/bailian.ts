@@ -26,6 +26,8 @@ function getDashscopeAgent() {
   return _dashscopeAgent;
 }
 
+export { getDashscopeAgent };
+
 // undici 的 Response 和 DOM Response 在 ReadableStream 泛型上有差异，
 // 但运行时行为完全一致。这里统一强转为 DOM Response，方便后续 .text()
 // .ok .status 的消费代码不动。
