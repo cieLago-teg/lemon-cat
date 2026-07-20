@@ -1,11 +1,99 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { PetArchive } from "@/lib/db/archive-types";
 import { useDeployPet } from "@/app/components/useDeployPet";
 import { DeployProgressBar } from "@/app/components/DeployProgressBar";
+
+// 2026-07-20：召唤完成后弹一个"网页版桌宠"（透明背景、可拖动、永远顶层）。
+// 这是 Electron 桌宠的网页等价物：用户在浏览器里就能拖着小猫到处跑。
+// 点击空白处不阻挡；点击猫本体才能拖动。
+function FloatingPetLayer({ videoUrl, alt }: { videoUrl: string; alt: string }) {
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    // 默认贴右下角（等 hydration 完成避免 SSR 偏移）
+    if (typeof window === "undefined") return;
+    const w = 192;
+    const h = 192;
+    setPos({ x: window.innerWidth - w - 24, y: window.innerHeight - h - 24 });
+    setMounted(true);
+    const onResize = () => {
+      setPos((prev) =>
+        prev
+          ? { x: Math.min(prev.x, window.innerWidth - w - 8), y: Math.min(prev.y, window.innerHeight - h - 8) }
+          : prev
+      );
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  if (!mounted || !pos) return null;
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+    dragRef.current = { startX: e.clientX, startY: e.clientY, originX: pos.x, originY: pos.y };
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    setPos({
+      x: Math.max(0, Math.min(window.innerWidth - 200, dragRef.current.originX + dx)),
+      y: Math.max(0, Math.min(window.innerHeight - 200, dragRef.current.originY + dy))
+    });
+  };
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+  };
+
+  return (
+    <div
+      aria-label="网页版桌宠"
+      className="fixed z-[9999]"
+      style={{ left: pos.x, top: pos.y, pointerEvents: "none" }}
+    >
+      <div
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        title="拖动小猫"
+        style={{
+          width: 192,
+          height: 192,
+          pointerEvents: "auto",
+          cursor: "grab",
+          touchAction: "none",
+          filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.25))"
+        }}
+      >
+        <video
+          src={videoUrl}
+          autoPlay
+          loop
+          muted
+          playsInline
+          aria-label={alt}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            background: "transparent"
+          }}
+        />
+      </div>
+    </div>
+  );
+}
 
 // 2026-06-09 Step 6.2：诞生时刻成功页。
 // 设计目标：杂志感 + 治愈系 + 仪式感。
@@ -321,6 +409,10 @@ function InnerCreateSuccessPage() {
           后续可以在「桌面陪伴」里为它选择陪伴模式 🛋️
         </p>
       </main>
+
+      {/* 2026-07-20：网页版桌宠 — 透明背景 + 可拖动 + 永远顶层。
+          Railway 部署环境下作为 Electron 桌宠的网页等价物。 */}
+      {playbackUrl && <FloatingPetLayer videoUrl={playbackUrl} alt={archive.petName} />}
     </div>
   );
 }
