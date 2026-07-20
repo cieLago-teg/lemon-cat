@@ -424,12 +424,12 @@ function InnerCreateSuccessPage() {
             <p>
               <span className="font-semibold">你访问的是公网网站</span>（
               <a
-                href="https://lemoncat.cielago.com"
+                href="https://outstanding-purpose-production-8d0c.up.railway.app"
                 target="_blank"
                 rel="noreferrer"
                 className="font-medium text-amber-700 underline decoration-amber-300 underline-offset-2 hover:text-amber-900"
               >
-                lemoncat.cielago.com
+                outstanding-purpose-production-8d0c.up.railway.app
               </a>
               ），网站只能控制你<span className="font-semibold">浏览器</span>，不能控制你电脑桌面。
               所以点「召唤到桌面」不会真的在你电脑桌面弹窗口——
@@ -453,7 +453,7 @@ function InnerCreateSuccessPage() {
               <p className="mt-1 text-amber-900/90">
                 在浏览器里打开{" "}
                 <code className="rounded bg-white/80 px-1 py-0.5 font-mono text-xs text-amber-900">
-                  lemoncat.cielago.com
+                  outstanding-purpose-production-8d0c.up.railway.app
                 </code>{" "}
                 看到的只是<span className="font-semibold">「网页版」</span>（杂志感档案 + 透明可拖动视频），
                 <span className="font-semibold">不是完整桌宠体验</span>。
@@ -490,12 +490,12 @@ npm run dev:pet-shell`}
               💡 给评委展示时建议双管齐下：<br />
               · 先打开{" "}
               <a
-                href="https://lemoncat.cielago.com"
+                href="https://outstanding-purpose-production-8d0c.up.railway.app"
                 target="_blank"
                 rel="noreferrer"
                 className="font-medium text-amber-700 underline decoration-amber-300 underline-offset-2 hover:text-amber-900"
               >
-                lemoncat.cielago.com
+                outstanding-purpose-production-8d0c.up.railway.app
               </a>{" "}
               看网页版完整流程（杂志感档案 + 透明拖动视频）<br />
               · 再用 1-2 分钟本地录屏展示完整 Electron 桌宠（Live2D + 透明穿透 + 快捷键）
