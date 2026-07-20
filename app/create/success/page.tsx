@@ -442,6 +442,22 @@ function InnerCreateSuccessPage() {
                 不阻挡其他内容点击。这是 Electron 桌宠的网页等价物。
               </p>
             </div>
+            <div className="rounded-xl border-2 border-rose-300 bg-rose-50/80 p-4 shadow-sm">
+              <p className="font-semibold text-rose-900">🛑 评委请先看（必读）</p>
+              <p className="mt-1 text-rose-900/90">
+                <span className="font-semibold">「完整版桌宠」是一个 Electron 桌面应用</span>，
+                <span className="font-semibold">不是网站</span>。它需要在你自己的电脑上
+                <span className="font-semibold">安装并运行</span>才能体验透明背景、Live2D 实时驱动、
+                鼠标穿透、全局快捷键这些完整功能。
+              </p>
+              <p className="mt-1 text-rose-900/90">
+                在浏览器里打开{" "}
+                <code className="rounded bg-white/70 px-1 py-0.5 text-xs">lemoncat.cielago.com</code>{" "}
+                看到的只是<span className="font-semibold">「网页版」</span>（杂志感档案 + 透明可拖动视频），
+                <span className="font-semibold">不是完整桌宠体验</span>。
+              </p>
+            </div>
+
             <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4">
               <p className="font-semibold text-emerald-900">🖥️ 完整版桌宠（需要本地运行）</p>
               <p className="mt-1 text-emerald-900/90">
@@ -454,7 +470,7 @@ function InnerCreateSuccessPage() {
                 <li>8 方向 sprite 动画（鼠标拖到窗口边缘自动切换方向）</li>
               </ul>
               <p className="mt-2 text-emerald-900/90">
-                本地启动方式：
+                本地启动方式（需 Node.js 18+）：
               </p>
               <pre className="mt-1 overflow-x-auto rounded-lg bg-emerald-900/90 p-3 font-mono text-xs text-emerald-50">
 {`git clone https://github.com/cieLago-teg/lemon-cat.git
