@@ -93,8 +93,13 @@ jobs:
 
       - name: 打印产物清单
         if: always()
+        shell: pwsh
         working-directory: app-shell
         run: |
           echo "===== 构建产物 ====="
-          ls -lh dist/ 2>/dev/null || dir dist
+          if (Test-Path dist) {
+            Get-ChildItem dist -Recurse | Format-Table Name, Length, LastWriteTime -AutoSize
+          } else {
+            echo "dist 目录不存在（构建未产出）"
+          }
           echo "===================="

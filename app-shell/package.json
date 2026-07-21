@@ -9,9 +9,8 @@
   "scripts": {
     "start": "electron .",
     "build:app": "electron-builder",
-    "build:app:win": "electron-builder --win",
-    "build:app:mac": "electron-builder --mac",
-    "postinstall": "electron-builder install-app-deps"
+    "build:app:win": "electron-builder --win --publish never",
+    "build:app:mac": "electron-builder --mac --publish never"
   },
   "devDependencies": {
     "electron": "^32.2.0",
