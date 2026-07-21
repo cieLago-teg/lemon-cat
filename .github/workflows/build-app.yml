@@ -42,16 +42,16 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 设置 Node.js 20
+      # 2026-07-21：升 Node 22（官方弃用 Node 20，下次升级强制 24）；
+      # 不用 npm cache，因为仓库里没有 package-lock.json，先 install 一次生成。
+      - name: 设置 Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: app-shell/package-lock.json
+          node-version: "22"
 
-      - name: 安装依赖
+      - name: 安装依赖（首次自动生成 package-lock.json）
         working-directory: app-shell
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
 
       - name: 构建桌面应用（Windows）
         if: matrix.os == 'windows-latest' && (github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows')
