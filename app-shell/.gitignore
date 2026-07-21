@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+Thumbs.db
+build/icon.ico
+build/icon.icns
+build/icon.png
+build/entitlements.mac.plist
