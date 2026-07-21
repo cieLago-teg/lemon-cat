@@ -1,0 +1,100 @@
+name: 柠檬猫桌面应用构建
+
+# 2026-07-20：柠檬猫桌面应用跨平台构建
+# - Windows runner 产出 .exe (NSIS installer)
+# - macOS runner 产出 .dmg (x64 + arm64)
+# - 不签名（用户当前不需要发布给别人）
+# - 触发条件：push 到 main、PR、manual
+# - 产出：上传为 GitHub Actions artifact（14 天保留）
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app-shell/**"
+      - ".github/workflows/build-app.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "app-shell/**"
+      - ".github/workflows/build-app.yml"
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "构建平台（默认两个都跑）"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - windows
+          - macos
+
+jobs:
+  build:
+    name: 构建桌面应用 (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: app-shell/package-lock.json
+
+      - name: 安装依赖
+        working-directory: app-shell
+        run: npm ci --no-audit --no-fund
+
+      - name: 构建桌面应用（Windows）
+        if: matrix.os == 'windows-latest' && (github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows')
+        working-directory: app-shell
+        run: npm run build:app:win
+        env:
+          # 2026-07-20：Windows runner 的 ELECTRON_MIRROR 防止下载卡顿
+          ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+          ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
+
+      - name: 构建桌面应用（macOS）
+        if: matrix.os == 'macos-latest' && (github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'macos')
+        working-directory: app-shell
+        run: npm run build:app:mac
+        env:
+          # 2026-07-20：避免 macOS 强制代码签名（用户没买证书）
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          # 国内镜像加速 electron-builder 依赖下载
+          ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+          ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
+
+      - name: 上传 Windows 安装包
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: 柠檬猫-Windows-Setup
+          path: app-shell/dist/*.exe
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: 上传 macOS 安装包
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: 柠檬猫-macOS-DMG
+          path: app-shell/dist/*.dmg
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: 打印产物清单
+        if: always()
+        working-directory: app-shell
+        run: |
+          echo "===== 构建产物 ====="
+          ls -lh dist/ 2>/dev/null || dir dist
+          echo "===================="
