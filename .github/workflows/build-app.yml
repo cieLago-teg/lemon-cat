@@ -2,7 +2,7 @@ name: 柠檬猫桌面应用构建
 
 # 2026-07-20：柠檬猫桌面应用跨平台构建
 # - Windows runner 产出 .exe (NSIS installer)
-# - macOS runner 产出 .dmg (x64 + arm64)
+# - macOS runner 产出 .dmg + zip (x64 + arm64)
 # - 不签名（用户当前不需要发布给别人）
 # - 触发条件：push 到 main、PR、manual
 # - 产出：上传为 GitHub Actions artifact（14 天保留）
@@ -58,18 +58,27 @@ jobs:
         working-directory: app-shell
         run: npm run build:app:win
         env:
-          # 2026-07-20：Windows runner 的 ELECTRON_MIRROR 防止下载卡顿
           ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
           ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
+
+      # 2026-07-21：清理上一个 build 残留的 volume（避免 hdiutil detach 失败）
+      - name: 清理 macOS 残留挂载
+        if: matrix.os == 'macos-latest'
+        run: |
+          echo "===== 当前挂载的 dmg 相关卷 ====="
+          mount | grep -i "柠檬猫\|lemon-cat" || echo "（无残留）"
+          for vol in $(mount | grep -i "柠檬猫\|lemon-cat" | awk '{print $3}'); do
+            echo "尝试卸载 $vol"
+            hdiutil detach "$vol" 2>&1 || true
+          done
+          echo "===== 清理完毕 ====="
 
       - name: 构建桌面应用（macOS）
         if: matrix.os == 'macos-latest' && (github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'macos')
         working-directory: app-shell
         run: npm run build:app:mac
         env:
-          # 2026-07-20：避免 macOS 强制代码签名（用户没买证书）
           CSC_IDENTITY_AUTO_DISCOVERY: false
-          # 国内镜像加速 electron-builder 依赖下载
           ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
           ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
 
@@ -82,13 +91,15 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: 上传 macOS 安装包
+      - name: 上传 macOS 安装包（dmg + zip）
         if: matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: 柠檬猫-macOS-DMG
-          path: app-shell/dist/*.dmg
-          if-no-files-found: error
+          name: 柠檬猫-macOS
+          path: |
+            app-shell/dist/*.dmg
+            app-shell/dist/*.zip
+          if-no-files-found: warn
           retention-days: 14
 
       - name: 打印产物清单
