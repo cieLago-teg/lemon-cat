@@ -2,7 +2,11 @@ name: 柠檬猫桌面应用构建
 
 # 2026-07-20：柠檬猫桌面应用跨平台构建
 # - Windows runner 产出 .exe (NSIS installer)
-# - macOS runner 产出 .dmg + zip (x64 + arm64)
+# - macOS runner 产出 zip 仅（x64 + arm64），不产 dmg
+# 原因：GitHub Actions arm64 runner + 中文 productName + hdiutil detach 
+# 存在已知 bug（hdiutil 卸载 /Volumes/柠檬猫 0.1.0 一定挂）。
+# dmg 不存在后，hdiutil 整个不参与 build，问题消失。
+# 代价：macOS 用户下载后双击 zip 解压，要手动拖 app 进 Applications。
 # - 不签名（用户当前不需要发布给别人）
 # - 触发条件：push 到 main、PR、manual
 # - 产出：上传为 GitHub Actions artifact（14 天保留）
@@ -42,8 +46,6 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      # 2026-07-21：升 Node 22（官方弃用 Node 20，下次升级强制 24）；
-      # 不用 npm cache，因为仓库里没有 package-lock.json，先 install 一次生成。
       - name: 设置 Node.js 22
         uses: actions/setup-node@v4
         with:
@@ -61,19 +63,7 @@ jobs:
           ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
           ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
 
-      # 2026-07-21：清理上一个 build 残留的 volume（避免 hdiutil detach 失败）
-      - name: 清理 macOS 残留挂载
-        if: matrix.os == 'macos-latest'
-        run: |
-          echo "===== 当前挂载的 dmg 相关卷 ====="
-          mount | grep -i "柠檬猫\|lemon-cat" || echo "（无残留）"
-          for vol in $(mount | grep -i "柠檬猫\|lemon-cat" | awk '{print $3}'); do
-            echo "尝试卸载 $vol"
-            hdiutil detach "$vol" 2>&1 || true
-          done
-          echo "===== 清理完毕 ====="
-
-      - name: 构建桌面应用（macOS）
+      - name: 构建桌面应用（macOS，仅 zip）
         if: matrix.os == 'macos-latest' && (github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'macos')
         working-directory: app-shell
         run: npm run build:app:mac
@@ -91,14 +81,12 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: 上传 macOS 安装包（dmg + zip）
+      - name: 上传 macOS 安装包（仅 zip）
         if: matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v4
         with:
           name: 柠檬猫-macOS
-          path: |
-            app-shell/dist/*.dmg
-            app-shell/dist/*.zip
+          path: app-shell/dist/*.zip
           if-no-files-found: warn
           retention-days: 14
 
