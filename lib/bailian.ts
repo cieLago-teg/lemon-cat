@@ -309,13 +309,18 @@ export async function extractPetFeatures(imageBase64WithMime: string, model: str
 }
 
 export async function generateStyledImage(prompt: string, model: string) {
-  // 如果是 wanx / wan 等异步模型，直接走 createImageTask
+  // 2026-08-07：wan2.6 系列改走同步多模态生成协议（runSyncMultimodalImageGeneration）。
+  // 根因：异步任务（runAsyncImageTask）返回的结果 URL 存放在 dashscope-result-*
+  // 内网专用桶，公网（浏览器 / Railway 服务器 / i2v 拉图 worker）一律 403，
+  // 直接导致"生成宠物动态形象"最后一步 i2v 拉不到参考图而失败。
+  // 同步协议返回 oss-accelerate 公共加速桶 URL，公网可直接下载，
+  // 官方文档也推荐大多数场景使用同步调用。
   if (model.startsWith("wan")) {
-    return runAsyncImageTask(prompt, model);
+    return withRetry(() => runSyncMultimodalImageGeneration(prompt, model, "1280*1280"));
   }
 
   if (model.startsWith("qwen-image") || model.startsWith("qwen_image")) {
-    return runSyncMultimodalImageGeneration(prompt, model);
+    return withRetry(() => runSyncMultimodalImageGeneration(prompt, model));
   }
 
   try {
@@ -344,8 +349,15 @@ export async function generateStyledImage(prompt: string, model: string) {
   return runAsyncImageTask(prompt, model);
 }
 
-  async function runSyncMultimodalImageGeneration(prompt: string, model: string) {
+  async function runSyncMultimodalImageGeneration(prompt: string, model: string, size = "1024*1024") {
     const url = `${getDashscopeRoot()}/api/v1/services/aigc/multimodal-generation/generation`;
+    // wan2.6 专属参数：关闭扩写与水印，保证结果图贴合 prompt 且无水印。
+    // qwen-image 不识别这些字段，故仅在 wan 前缀下附加，避免误伤。
+    const parameters: Record<string, unknown> = { size, n: 1 };
+    if (model.startsWith("wan")) {
+      parameters.prompt_extend = false;
+      parameters.watermark = false;
+    }
     let response: DomResponse;
     try {
       // 2026-06-04：补上 dispatcher，把 undici 默认 10s connectTimeout
@@ -367,10 +379,7 @@ export async function generateStyledImage(prompt: string, model: string) {
             }
           ]
         },
-        parameters: {
-          size: "1024*1024",
-          n: 1
-        }
+        parameters
       })
     })) as unknown as DomResponse;
   } catch (err) {
