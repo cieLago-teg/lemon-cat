@@ -124,45 +124,53 @@ async function fetchImageBuffer(sourceUrl: string, requestUrl: string) {
   };
 }
 
-// 2026-08-07：判断某个参考图 URL 是否需要在送给 i2v 之前，先由本服务端
-// 自下载 + 转存到我们自己的 OSS。覆盖三类 i2v 拿不到 / 不接受的 URL：
-//   1. 站内相对路径 / localhost（i2v 在阿里云侧无法回源到我们的容器）；
-//   2. data: URL（wan2.6 i2v 明确拒绝）；
-//   3. DashScope 临时/签名 URL（dashscope-result-* 内网桶公网 403，
-//      accelerate 公共桶也有 24h 有效期）——统一转存成稳定的项目 OSS URL。
-function needsSelfHostForI2v(url: string): boolean {
-  if (!url) return false;
-  if (url.startsWith("/") || url.includes("localhost")) return true;
-  if (url.startsWith("data:")) return true;
-  try {
-    const host = new URL(url).hostname;
-    return host.includes("dashscope") && host.endsWith(".aliyuncs.com");
-  } catch {
-    return false;
-  }
-}
+// 2026-08-07（修订版）：把任意参考图解析成 i2v worker 公网可拉取的 URL。
+// 策略按输入类型分派：
+//   1. 远程 http(s) URL —— 直接透传。t2i 同步接口返回的 oss-accelerate
+//      公共桶已实测公网 GET 200，i2v 自己能拉，无需转存。
+//   2. 站内路径 / localhost —— 拼本站公网域名（RAILWAY_PUBLIC_DOMAIN），
+//      站内 /api/archive/... 等路由本身公网可达，i2v 直接回源。
+//   3. data: URL —— wan2.6 i2v 明确拒绝；先落盘 public/pet-videos/，
+//      再按站内路径处理。
+//   4. 本地 dev（无公网域名）—— best-effort 上传到 policy OSS 兜底。
+// 历史教训：policy OSS 桶（dashscope-file-mgr）policy 强制 acl=private，
+// 上传后 https URL 公网 403、oss:// 协议又被 wan2.6 i2v 拒绝
+// （"No connection adapters"）——所以上传转存不能作为主路径，只能兜底。
+async function resolveI2vImageUrl(sourceUrl: string, requestUrl: string, apiKey: string): Promise<string> {
+  let localPath: string | null = null;
 
-// 把任意参考图（data: / 站内路径 / 远程 URL）解析成 bytes + contentType，
-// 随后上传到 OSS，返回 i2v 必定可达的公网 URL。
-async function selfHostImageForI2v(sourceUrl: string, requestUrl: string, apiKey: string): Promise<string> {
-  let bytes: Buffer;
-  let contentType: string;
   if (sourceUrl.startsWith("data:")) {
     const match = sourceUrl.match(/^data:(image\/[a-z0-9+.-]+);base64,(.+)$/i);
     if (!match) {
       throw new Error("无法解析 data: 参考图");
     }
-    contentType = match[1];
-    bytes = Buffer.from(match[2], "base64");
+    const bytes = Buffer.from(match[2], "base64");
     if (bytes.length === 0) {
       throw new Error("参考图为空");
     }
-  } else {
-    ({ bytes, contentType } = await fetchImageBuffer(sourceUrl, requestUrl));
+    const ext = match[1].split("/")[1].replace("jpeg", "jpg") || "png";
+    const fileName = `i2v-ref-${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+    fs.writeFileSync(path.join(ensureVideoDir(), fileName), bytes);
+    localPath = `/pet-videos/${fileName}`;
+  } else if (sourceUrl.startsWith("/")) {
+    localPath = sourceUrl;
+  } else if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(sourceUrl)) {
+    localPath = new URL(sourceUrl).pathname;
   }
-  const { uploadImageToOss } = await import("@/lib/pet/oss-upload.js");
-  const model = process.env.DASHSCOPE_VIDEO_MODEL || "wan2.6-i2v-flash";
-  return uploadImageToOss(apiKey, bytes, contentType, model);
+
+  if (localPath) {
+    const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
+    if (domain) {
+      return `https://${domain}${localPath}`;
+    }
+    // 本地 dev 无公网入口：退化为 policy OSS 上传（见文件头历史教训）。
+    const { bytes, contentType } = await fetchImageBuffer(localPath, requestUrl);
+    const { uploadImageToOss } = await import("@/lib/pet/oss-upload.js");
+    const model = process.env.DASHSCOPE_VIDEO_MODEL || "wan2.6-i2v-flash";
+    return uploadImageToOss(apiKey, bytes, contentType, model);
+  }
+
+  return sourceUrl;
 }
 
 function getDashscopeBaseUrl() {
@@ -295,12 +303,9 @@ async function runJobForTask(
   }, 1000);
   try {
     const apiKey = String(process.env.DASHSCOPE_API_KEY || "");
-    let finalSourceUrl = ctx.sourceImageUrl;
-    if (needsSelfHostForI2v(finalSourceUrl)) {
-      // 2026-08-07：站内路径 / localhost / data: / DashScope 临时桶 URL，
-      // i2v worker 一律拿不到，统一自下载后转存项目 OSS，换稳定公网 URL。
-      finalSourceUrl = await selfHostImageForI2v(finalSourceUrl, ctx.requestUrl, apiKey);
-    }
+    // 2026-08-07：统一把参考图解析成 i2v 公网可拉取的 URL
+    // （远程透传 / 站内拼公网域名 / data: 落盘，详见 resolveI2vImageUrl）。
+    const finalSourceUrl = await resolveI2vImageUrl(ctx.sourceImageUrl, ctx.requestUrl, apiKey);
 
     const upstreamUrl = await generateWithDashscope(
       apiKey,
@@ -423,12 +428,9 @@ export async function POST(request: Request) {
   // ------------------------------------------------------------------
   try {
     const apiKey = String(process.env.DASHSCOPE_API_KEY || "");
-    let finalSourceUrl = sourceImageUrl;
-    if (needsSelfHostForI2v(finalSourceUrl)) {
-      // 2026-08-07：wan2.6 i2v 明确拒绝 data: URL；站内路径与 DashScope
-      // 临时桶 URL 也拿不到。统一自下载 + 转存项目 OSS 后再送 i2v。
-      finalSourceUrl = await selfHostImageForI2v(finalSourceUrl, request.url, apiKey);
-    }
+    // 2026-08-07：同 runJobForTask，统一走 resolveI2vImageUrl。
+    // 旧逻辑把站内图拼成 data: URL，wan2.6 i2v 明确拒绝，已废弃。
+    const finalSourceUrl = await resolveI2vImageUrl(sourceImageUrl, request.url, apiKey);
 
     const upstreamUrl = await generateWithDashscope(
       apiKey,
