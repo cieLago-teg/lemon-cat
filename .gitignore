@@ -3,6 +3,20 @@ node_modules
 out
 .env.local
 .env
+secrets/
+logs/
+.env.*
+!.env.example
+.venv/
+.tmp-*/
+.tsbuild_test/
+multi-frame-probe/
+temp-frame-probe/
+archive.json
+app-shell/dist/
+artifacts/
+output/playwright/
+.playwright-cli/
 *.log
 
 tsconfig.tsbuildinfo
@@ -15,6 +29,7 @@ ffmpeg.zip
 
 data/
 models/
+.bp-deploy/
 
 public/pet-videos/
 public/pet-images/

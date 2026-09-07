@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import AppNav from "./components/AppNav";
+import ErrorBoundary from "./components/ErrorBoundary";
+import ClientErrorWatcher from "./components/ClientErrorWatcher";
 
 export const metadata: Metadata = {
   title: "数字宠物档案馆",
@@ -19,8 +21,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="bg-transparent text-slate-900 font-rounded">
-        <AppNav />
-        {children}
+        <ErrorBoundary>
+          <AppNav />
+          {children}
+        </ErrorBoundary>
+        <ClientErrorWatcher />
       </body>
     </html>
   );
