@@ -8,7 +8,7 @@
 
 ## 环境要求
 
-- **Node.js** 20+
+- **Node.js** >=22.19（本批验证使用 24.18.0，见 `.node-version`）
 - **npm** 10+
 - （可选）**Electron** 桌面环境（用于桌宠壳）
 
@@ -19,7 +19,7 @@
 ### 1. 安装依赖
 
 ```bash
-npm install
+npm ci
 ```
 
 ### 2. 配置 API Key
@@ -100,8 +100,8 @@ models/
 
 ```bash
 cd desktop-pet-shell
-npm install
-npm run dev:pet-shell
+npm ci
+npm start
 ```
 
 桌宠壳会监听项目根目录的 `desktop-pet-shell/config.json`，当你在 Web 页面点击「召唤到桌面」时，视频文件会被自动写入并加载。
@@ -114,6 +114,8 @@ npm run dev:pet-shell
 npm run lint
 npm run typecheck
 npm run build
+npm run doctor
+npm run check
 ```
 
 ---

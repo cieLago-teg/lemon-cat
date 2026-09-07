@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { Agent, fetch as undiciFetch } from "undici";
+import { readJson, writeJsonAtomic } from "./json-store.cjs";
 
 // 2026-06-09 Step 5：所有 PetArchive / CompanionConfig 等类型 + 默认值 +
 // sanitizeCompanionConfig 都在 archive-types.ts 里。archive.ts 这里是 server-only
@@ -160,15 +161,13 @@ function normalizeArchive(raw: unknown): PetArchive {
 
 export function getAllArchives(): PetArchive[] {
   ensureDbExists();
-  try {
-    const data = fs.readFileSync(DB_FILE, "utf-8");
-    const parsed = JSON.parse(data) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map(normalizeArchive);
-  } catch (error) {
-    console.error("Failed to read archives db", error);
-    return [];
-  }
+  const parsed = readJson<unknown>(DB_FILE, []);
+  if (!Array.isArray(parsed)) throw new Error("档案数据格式异常，已保留原文件，请勿覆盖。");
+  return parsed.map(normalizeArchive);
+}
+
+export function writeArchives(archives: PetArchive[]) {
+  writeJsonAtomic(DB_FILE, archives);
 }
 
 export type SaveArchiveInput = Omit<PetArchive, "id" | "createdAt" | "sourceImage"> & {
@@ -380,7 +379,7 @@ export function saveArchive(archive: SaveArchiveInput): PetArchive {
   }
 
   archives.unshift(newArchive);
-  fs.writeFileSync(DB_FILE, JSON.stringify(archives, null, 2), "utf-8");
+  writeArchives(archives);
   return newArchive;
 }
 
@@ -390,7 +389,7 @@ export function deleteArchiveById(id: string) {
   if (index < 0) return { ok: false as const, reason: "not_found" as const };
 
   const removed = archives.splice(index, 1)[0];
-  fs.writeFileSync(DB_FILE, JSON.stringify(archives, null, 2), "utf-8");
+  writeArchives(archives);
 
   if (removed?.sourceImage?.ext) {
     const filePath = getSourceImageFilePath(id, removed.sourceImage.ext);
@@ -420,7 +419,7 @@ export function deleteArchiveById(id: string) {
 // 推荐所有调用方使用这个，而不是同步版（同步版仅作为"不下载 result 图"回退）。
 // ---------------------------------------------------------------------------
 export async function saveArchiveAsync(archive: SaveArchiveInput): Promise<PetArchive> {
-  const archives = getAllArchives();
+  getAllArchives();
   const { sourceImage, ...rest } = archive;
   const newArchive: PetArchive = {
     ...rest,
@@ -460,7 +459,9 @@ export async function saveArchiveAsync(archive: SaveArchiveInput): Promise<PetAr
     newArchive.results = downloaded;
   }
 
+  // Re-read after downloads so concurrent requests cannot overwrite a newer archive.
+  const archives = getAllArchives();
   archives.unshift(newArchive);
-  fs.writeFileSync(DB_FILE, JSON.stringify(archives, null, 2), "utf-8");
+  writeArchives(archives);
   return newArchive;
 }

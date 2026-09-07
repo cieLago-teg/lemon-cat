@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { pollAnimation } from "@/lib/pet/poll-animation.js";
 
 /**
  * 统一的"召唤到桌面"hook：永远只走视频。
@@ -70,20 +71,12 @@ export function useDeployPet() {
   const [deploying, setDeploying] = useState(false);
   const [usedCachedVideo, setUsedCachedVideo] = useState(false);
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
-  const pollRef = useRef<{ timer: ReturnType<typeof setInterval> | null; taskId: string | null }>({
-    timer: null,
-    taskId: null
-  });
-  const abortedRef = useRef(false);
+  const operationRef = useRef<AbortController | null>(null);
 
   // 组件卸载或中途取消时，停掉轮询
   useEffect(() => {
     return () => {
-      abortedRef.current = true;
-      if (pollRef.current.timer) {
-        clearInterval(pollRef.current.timer);
-        pollRef.current.timer = null;
-      }
+      operationRef.current?.abort();
     };
   }, []);
 
@@ -91,58 +84,15 @@ export function useDeployPet() {
     setProgress({ stage, percent, message, fraction: Math.max(0, Math.min(1, percent / 100)) });
   }
 
-  async function pollUntilDone(taskId: string) {
-    return new Promise<string>((resolve, reject) => {
-      const tick = async () => {
-        if (abortedRef.current) {
-          if (pollRef.current.timer) clearInterval(pollRef.current.timer);
-          pollRef.current.timer = null;
-          return;
-        }
-        try {
-          const res = await fetch(`/api/pet/animation-status?taskId=${taskId}`);
-          const data = await res.json();
-          const task = data?.task;
-          if (task?.stage === "Success" && task?.videoUrl) {
-            if (pollRef.current.timer) clearInterval(pollRef.current.timer);
-            pollRef.current.timer = null;
-            setStage("animating", 99, "正在合成最终视频…");
-            resolve(String(task.videoUrl));
-            return;
-          }
-          if (task?.stage === "Failure") {
-            if (pollRef.current.timer) clearInterval(pollRef.current.timer);
-            pollRef.current.timer = null;
-            reject(new Error(task.message || task.error || "动画生成失败"));
-            return;
-          }
-          if (typeof task?.percent === "number") {
-            // 后端给的 percent 直接覆盖（来自 STAGE_PERCENTS + tickWithoutStatus）
-            setStage(
-              "animating",
-              Math.max(progress.percent, Math.min(95, task.percent)),
-              task.message || progress.message
-            );
-          } else if (task?.message) {
-            setStage("animating", progress.percent, task.message);
-          }
-        } catch {
-          // 网络波动：保持上一帧，不中断
-        }
-      };
-      tick();
-      pollRef.current.timer = setInterval(tick, 2500);
-    });
-  }
-
   async function deploy(opts: DeployOptions): Promise<DeployResult> {
-    if (deploying) {
+    if (operationRef.current) {
       return { ok: false, videoUrl: null, usedCachedVideo: Boolean(opts.videoUrl) };
     }
     setError("");
     setHint("");
     setPlaybackUrl(null);
-    abortedRef.current = false;
+    const operation = new AbortController();
+    operationRef.current = operation;
     setDeploying(true);
     setStage("animating", 5, "已提交到 Wan 队列");
 
@@ -155,6 +105,7 @@ export function useDeployPet() {
         setStage("animating", 8, "正在为它注入生命…");
         const submitRes = await fetch("/api/pet/animate", {
           method: "POST",
+          signal: operation.signal,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             imageUrl: opts.imageUrl,
@@ -166,17 +117,23 @@ export function useDeployPet() {
           throw new Error(submitData?.error || `动画提交失败 (${submitRes.status})`);
         }
         const taskId: string = submitData.taskId;
-        pollRef.current.taskId = taskId;
         setStage("animating", 12, "已提交到 Wan 队列");
 
         // 2. 轮询等结果
-        videoUrl = await pollUntilDone(taskId);
+        videoUrl = await pollAnimation(taskId, {
+          signal: operation.signal,
+          onProgress: (task) => setProgress((previous) => {
+            const percent = Math.max(previous.percent, Math.min(95, task.percent ?? previous.percent));
+            return { stage: "animating", percent, fraction: percent / 100, message: task.message || previous.message };
+          })
+        });
       }
 
       // 3. 投放视频
       setStage("deploying", 99, "正在把它送到桌面…");
       const deployRes = await fetch("/api/pet/set-video", {
         method: "POST",
+        signal: operation.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ videoUrl })
       });
@@ -190,7 +147,7 @@ export function useDeployPet() {
       if (deployData?.playbackUrl) {
         setPlaybackUrl(String(deployData.playbackUrl));
       }
-      setStage("done", 100, "它已经出现在桌面啦");
+      setStage("done", 100, deployData?.playbackUrl ? "视频已就绪，可在网页预览" : deployData?.shellLaunched ? "已请求打开桌宠窗口" : "视频已保存，桌宠窗口尚未启动");
       setHint(
         deployData?.shellLaunched
           ? "🛋️ 桌宠壳已响应"
@@ -200,15 +157,22 @@ export function useDeployPet() {
       );
       return { ok: true, videoUrl, usedCachedVideo };
     } catch (e) {
-      setError(e instanceof Error ? e.message : "召唤失败");
-      setStage("error", 0, "召唤失败");
+      if (!operation.signal.aborted) {
+        setError(e instanceof Error ? e.message : "召唤失败");
+        setStage("error", 0, "召唤失败");
+      }
       return { ok: false, videoUrl: null, usedCachedVideo: Boolean(opts.videoUrl) };
     } finally {
-      setDeploying(false);
+      if (operationRef.current === operation) {
+        operationRef.current = null;
+        if (!operation.signal.aborted) setDeploying(false);
+      }
     }
   }
 
   function reset() {
+    operationRef.current?.abort();
+    operationRef.current = null;
     setProgress(INITIAL);
     setError("");
     setHint("");

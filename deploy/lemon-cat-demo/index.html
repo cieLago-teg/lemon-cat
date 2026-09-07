@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>柠檬猫 · 数字宠物档案馆 (Demo)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Long+Cang&family=Ma+Shan+Zheng&family=M+PLUS+Rounded+1c:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --color-ink: #5c2e10;
+    --color-cream: #fff8ee;
+    --color-cream-2: #fef3d8;
+    --color-peach: #f8c4a0;
+    --color-peach-deep: #e87a7a;
+    --color-pink: #f8a8a8;
+    --color-mint: #a8e6b8;
+    --color-gold: #fde68a;
+    --color-stone: #a8a29e;
+    --font-handwriting: "Ma Shan Zheng", "Caveat", cursive;
+    --font-handwriting-en: "Caveat", cursive;
+    --font-rounded: "M PLUS Rounded 1c", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  }
+  * { -webkit-font-smoothing: antialiased; }
+  html, body { background: var(--color-cream); color: var(--color-ink); font-family: var(--font-rounded); }
+  body { min-height: 100vh; }
+  .font-handwriting { font-family: var(--font-handwriting); letter-spacing: 0.02em; }
+  .font-handwriting-en { font-family: var(--font-handwriting-en); }
+  .num-art { font-feature-settings: "tnum"; letter-spacing: -0.02em; }
+
+  /* 顶部固定背景：暖木板 */
+  .bg-storybook {
+    background:
+      radial-gradient(ellipse 60% 40% at 8% 0%, rgba(254, 215, 170, 0.35) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 35% at 100% 100%, rgba(252, 165, 165, 0.22) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 30% at 90% 0%, rgba(187, 247, 208, 0.25) 0%, transparent 60%),
+      radial-gradient(ellipse 45% 35% at 0% 90%, rgba(253, 230, 138, 0.35) 0%, transparent 60%),
+      linear-gradient(170deg, #fff8ee 0%, #fef3d8 100%);
+  }
+  .bg-paper-glass { background: rgba(255, 251, 240, 0.78); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .bg-paper-glass-strong { background: rgba(255, 251, 240, 0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  .bg-paper-noise {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.62  0 0 0 0 0.42  0 0 0 0 0.16  0 0 0 0.10 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    background-size: 200px 200px;
+    mix-blend-mode: multiply;
+  }
+  .paint-border {
+    box-shadow:
+      0 0 0 1.5px rgba(196, 130, 89, 0.15),
+      0 0 0 3px rgba(196, 130, 89, 0.07),
+      0 8px 28px -10px rgba(196, 130, 89, 0.18);
+  }
+  .paint-border-soft {
+    box-shadow:
+      0 0 0 1px rgba(196, 130, 89, 0.18),
+      0 4px 16px -8px rgba(196, 130, 89, 0.12);
+  }
+
+  /* 水彩画布 */
+  .bg-canvas-watercolor {
+    background:
+      radial-gradient(ellipse 50% 60% at 50% 40%, rgba(255, 251, 235, 0.95) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 70% at 50% 100%, rgba(253, 230, 138, 0.4) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 20% 80%, rgba(254, 215, 170, 0.3) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 80% 20%, rgba(252, 165, 165, 0.18) 0%, transparent 60%),
+      linear-gradient(170deg, #fef9e7 0%, #fef3c7 100%);
+  }
+  .bg-canvas-pink {
+    background:
+      radial-gradient(ellipse 55% 65% at 50% 50%, rgba(255, 245, 238, 0.95) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 60% at 50% 100%, rgba(252, 165, 165, 0.25) 0%, transparent 60%),
+      linear-gradient(170deg, #fff7ed 0%, #ffe4d6 100%);
+  }
+  .bg-canvas-green {
+    background:
+      radial-gradient(ellipse 55% 65% at 50% 50%, rgba(247, 254, 231, 0.95) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 60% at 50% 100%, rgba(187, 247, 208, 0.32) 0%, transparent 60%),
+      linear-gradient(170deg, #fefce8 0%, #d9f99d 100%);
+  }
+  .bg-canvas-sky {
+    background:
+      radial-gradient(ellipse 55% 65% at 50% 50%, rgba(240, 249, 255, 0.95) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 60% at 50% 100%, rgba(186, 230, 253, 0.32) 0%, transparent 60%),
+      linear-gradient(170deg, #f0f9ff 0%, #e0f2fe 100%);
+  }
+
+  /* 数字艺术字 */
+  .num-art { font-family: var(--font-rounded); font-weight: 800; }
+
+  /* 4 步进度 ribbon */
+  .ribbon-line { background: linear-gradient(90deg, rgba(196,130,89,0.5), rgba(232,122,122,0.5), rgba(196,130,89,0.5)); height: 2px; }
+
+  /* 杂志感诞生时刻动效 */
+  @keyframes success-fade-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes success-rise-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes success-glow-pulse {
+    0%   { opacity: 0.55; transform: scale(1.0); }
+    50%  { opacity: 0.85; transform: scale(1.05); }
+    100% { opacity: 0.55; transform: scale(1.0); }
+  }
+  @keyframes stage-progress-dot {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+  }
+  @keyframes stage-line {
+    0% { width: 0%; }
+    100% { width: 100%; }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(2px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes float-soft {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+  .anim-success-fade { animation: success-fade-in 0.7s ease-out both; }
+  .anim-success-rise { animation: success-rise-in 0.5s ease-out both; }
+  .anim-glow-pulse { animation: success-glow-pulse 4s ease-in-out infinite; }
+  .anim-fadeIn { animation: fadeIn 0.4s ease-out; }
+  .anim-float-soft { animation: float-soft 4s ease-in-out infinite; }
+
+  /* 视图切换 */
+  .view { display: none; }
+  .view.active { display: block; }
+  .view-block { display: none; }
+  .view-block.active { display: block; }
+
+  /* 卡片选中态 */
+  .pet-card.selected { transform: translateY(-6px); }
+  .pet-card.selected .pet-img-wrap { box-shadow: 0 0 0 3px var(--color-ink), 0 12px 30px -8px rgba(196,130,89,0.4); }
+
+  /* 输入框 focus 颜色 */
+  input:focus, textarea:focus { outline: none; border-color: var(--color-peach-deep); }
+
+  /* 自定义滚动条 */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(196,130,89,0.3); border-radius: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  /* 像素宠物 sprite - 用 box-shadow 做 4 向 sprite 展示 */
+  .pixel-cat {
+    width: 32px;
+    height: 32px;
+    background:
+      /* 头 */
+      radial-gradient(circle at 50% 40%, #f8c4a0 0 6px, transparent 7px),
+      /* 眼睛 */
+      radial-gradient(circle at 45% 38%, #000 0 1.5px, transparent 2px),
+      radial-gradient(circle at 55% 38%, #000 0 1.5px, transparent 2px),
+      /* 耳朵 */
+      linear-gradient(135deg, #f8c4a0 0 4px, transparent 4px),
+      linear-gradient(225deg, #f8c4a0 100% 4px, transparent 4px);
+    image-rendering: pixelated;
+    position: relative;
+  }
+  .pixel-cat::before, .pixel-cat::after {
+    content: '';
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: #f8c4a0;
+    top: 2px;
+  }
+  .pixel-cat::before { left: 8px; transform: rotate(-30deg); }
+  .pixel-cat::after { right: 8px; transform: rotate(30deg); }
+</style>
+</head>
+<body class="bg-storybook min-h-screen">
+
+<!-- ============================== 顶部导航 ============================== -->
+<header class="fixed top-0 left-0 right-0 z-50 bg-paper-glass border-b border-[#5c2e10]/10">
+  <div class="mx-auto max-w-6xl px-4 sm:px-8 h-14 flex items-center justify-between">
+    <button onclick="showView('archive')" class="flex items-center gap-2 hover:opacity-80 transition">
+      <span class="text-2xl">🍋</span>
+      <span class="font-handwriting text-2xl text-[#5c2e10] leading-none">柠檬猫</span>
+      <span class="hidden sm:inline-block text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">数字档案馆</span>
+    </button>
+    <nav class="flex items-center gap-1 sm:gap-2 text-sm">
+      <button onclick="createNewPet()" class="nav-btn px-3 py-1.5 rounded-full text-[#5c2e10]/80 hover:bg-amber-100/60 transition" data-view="create">
+        <span class="mr-1">✨</span>创建新宠物
+      </button>
+      <button onclick="showView('archive')" class="nav-btn px-3 py-1.5 rounded-full text-[#5c2e10]/80 hover:bg-amber-100/60 transition" data-view="archive">
+        <span class="mr-1">📁</span>我的宠物
+      </button>
+      <span class="hidden md:inline-block ml-2 px-3 py-1.5 rounded-full bg-[#5c2e10]/10 text-xs text-[#5c2e10]/70 font-mono">DEMO</span>
+    </nav>
+  </div>
+</header>
+
+<!-- 顶部留白 -->
+<div class="h-14"></div>
+
+<!-- ============================== 视图容器 ============================== -->
+<main id="app-main" class="mx-auto max-w-6xl px-4 sm:px-8 pb-20">
+
+  <!-- ============================================================ -->
+  <!-- 视图 1: 创建新宠物流程 (Step 1-4)                            -->
+  <!-- ============================================================ -->
+  <section id="view-create" class="view">
+
+    <!-- 4 步进度条 -->
+    <div id="step-ribbon" class="mt-6 mb-8 rounded-2xl bg-paper-glass px-4 py-3 ring-1 ring-white/50 backdrop-blur-md shadow-sm shadow-amber-900/5">
+      <ol class="flex flex-1 items-center gap-3 sm:gap-4" id="ribbon-list">
+        <!-- 由 JS 动态渲染 -->
+      </ol>
+    </div>
+
+    <!-- ============ Step 1: 上传照片 ============ -->
+    <div id="step-1" class="view-block">
+      <div class="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-[1fr_1fr] lg:items-center">
+        <div>
+          <h1 class="mt-2 text-4xl sm:text-5xl font-normal leading-tight text-[#5c2e10]">
+            让它，<br class="hidden sm:block"><span>永远陪着你</span>
+          </h1>
+          <p class="mt-5 max-w-md text-base leading-relaxed text-[#5c2e10]/80">
+            上传一张照片，我们会为它建立一份温柔的赛博档案。它将安静地坐在你桌面的角落。
+          </p>
+
+          <label class="mt-8 inline-flex cursor-pointer items-center gap-2 rounded-full bg-amber-900 px-7 py-3.5 text-sm font-medium text-amber-50 shadow-lg shadow-amber-900/10 transition hover:bg-amber-800">
+            <input type="file" accept="image/*" class="hidden" id="photo-input" onchange="onPhotoSelect(event)">
+            <span>📷</span>
+            <span id="photo-btn-text">选择一张照片</span>
+          </label>
+          <p id="photo-name" class="hidden mt-3 text-xs text-[#5c2e10]/80">已选：<span class="font-medium text-[#5c2e10]" id="photo-name-text"></span></p>
+
+          <!-- 演示按钮：跳到档案编辑 -->
+          <div class="mt-4 flex gap-3 text-sm">
+            <button onclick="loadDemoPet()" class="text-[#5c2e10]/70 hover:text-[#e87a7a] underline-offset-2 hover:underline">
+              🎭 演示模式：用预置的「咪咪」开始
+            </button>
+          </div>
+
+          <!-- 上传建议折叠 -->
+          <div class="mt-8 max-w-md">
+            <button onclick="toggleTips()" class="flex items-center gap-1.5 text-xs text-[#5c2e10]/80 hover:text-[#5c2e10]">
+              <span id="tips-arrow" class="inline-block transition-transform">›</span>
+              如何选择一张好的宠物照片？
+            </button>
+            <ul id="tips-list" class="hidden mt-3 space-y-1.5 text-xs text-[#5c2e10]/80">
+              <li class="flex items-start gap-2">🌅 <span>自然光线下拍摄，避免闪光灯惊吓宠物</span></li>
+              <li class="flex items-start gap-2">🐾 <span>让宠物保持舒适放松的状态，清晰展示五官轮廓</span></li>
+              <li class="flex items-start gap-2">🎯 <span>正脸或微侧脸最佳，能清晰看到眼睛和耳朵特征</span></li>
+              <li class="flex items-start gap-2">🌿 <span>背景简洁，突出宠物主体，避免杂物干扰</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 右栏：示意图 + 拍摄要点 -->
+        <div class="relative">
+          <!-- 主示意图 -->
+          <div class="relative aspect-[4/5] overflow-hidden rounded-[28px] bg-canvas-watercolor paint-border">
+            <div class="absolute inset-0 bg-paper-noise opacity-30"></div>
+
+            <!-- 一只 Q 版橘猫侧脸 SVG 示意图 -->
+            <div class="absolute inset-0 flex items-center justify-center p-6">
+              <svg viewBox="0 0 320 400" xmlns="http://www.w3.org/2000/svg" class="h-full w-full">
+                <!-- 柔光底 -->
+                <radialGradient id="heroGlow" cx="50%" cy="40%">
+                  <stop offset="0%" stop-color="#fff8ee" stop-opacity="0.7"/>
+                  <stop offset="100%" stop-color="#fff8ee" stop-opacity="0"/>
+                </radialGradient>
+                <circle cx="160" cy="160" r="140" fill="url(#heroGlow)"/>
+
+                <!-- 身体 -->
+                <ellipse cx="160" cy="310" rx="100" ry="70" fill="#fb923c"/>
+                <!-- 头 -->
+                <circle cx="160" cy="180" r="90" fill="#fdba74"/>
+                <!-- 耳朵（外） -->
+                <polygon points="92,128 110,55 145,115" fill="#fb923c"/>
+                <polygon points="228,128 210,55 175,115" fill="#fb923c"/>
+                <!-- 耳朵（内） -->
+                <polygon points="106,116 115,72 134,113" fill="#fda4af"/>
+                <polygon points="214,116 205,72 186,113" fill="#fda4af"/>
+                <!-- 眼睛 -->
+                <ellipse cx="130" cy="185" rx="10" ry="14" fill="#14532d"/>
+                <ellipse cx="190" cy="185" rx="10" ry="14" fill="#14532d"/>
+                <circle cx="132" cy="180" r="3.5" fill="#fff8ee"/>
+                <circle cx="192" cy="180" r="3.5" fill="#fff8ee"/>
+                <!-- 鼻子 -->
+                <polygon points="155,210 165,210 160,217" fill="#7c2d12"/>
+                <!-- 嘴 -->
+                <path d="M160 217 Q150 230 142 222 M160 217 Q170 230 178 222" stroke="#7c2d12" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                <!-- 腮红 -->
+                <ellipse cx="108" cy="215" rx="12" ry="6" fill="#fda4af" opacity="0.6"/>
+                <ellipse cx="212" cy="215" rx="12" ry="6" fill="#fda4af" opacity="0.6"/>
+                <!-- 胡须 -->
+                <line x1="65" y1="210" x2="105" y2="215" stroke="#7c2d12" stroke-width="1.5"/>
+                <line x1="65" y1="222" x2="105" y2="222" stroke="#7c2d12" stroke-width="1.5"/>
+                <line x1="255" y1="210" x2="215" y2="215" stroke="#7c2d12" stroke-width="1.5"/>
+                <line x1="255" y1="222" x2="215" y2="222" stroke="#7c2d12" stroke-width="1.5"/>
+                <!-- 尾巴 -->
+                <path d="M250 320 Q300 290 285 240 Q278 218 268 230" stroke="#fb923c" stroke-width="22" fill="none" stroke-linecap="round"/>
+                <path d="M250 320 Q300 290 285 240" stroke="#c2410c" stroke-width="6" fill="none" stroke-linecap="round" opacity="0.4"/>
+              </svg>
+            </div>
+
+            <!-- 拍摄要点标签贴 -->
+            <div class="absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-full bg-white/85 px-3 py-1.5 text-[11px] font-medium text-amber-800 ring-1 ring-amber-200 backdrop-blur">
+              <span class="text-base">🌅</span>自然光
+            </div>
+            <div class="absolute right-4 top-12 z-10 flex items-center gap-1.5 rounded-full bg-white/85 px-3 py-1.5 text-[11px] font-medium text-amber-800 ring-1 ring-amber-200 backdrop-blur">
+              <span class="text-base">🎯</span>正脸或微侧脸
+            </div>
+            <div class="absolute right-4 bottom-20 z-10 flex items-center gap-1.5 rounded-full bg-white/85 px-3 py-1.5 text-[11px] font-medium text-amber-800 ring-1 ring-amber-200 backdrop-blur">
+              <span class="text-base">🐾</span>放松的神态
+            </div>
+            <div class="absolute left-4 bottom-4 z-10 flex items-center gap-1.5 rounded-full bg-white/85 px-3 py-1.5 text-[11px] font-medium text-amber-800 ring-1 ring-amber-200 backdrop-blur">
+              <span class="text-base">🌿</span>简洁背景
+            </div>
+
+            <!-- 角标装饰 -->
+            <div class="absolute -right-3 top-1/3 z-10 h-10 w-10 rounded-full bg-rose-300/60 ring-4 ring-rose-100/50"></div>
+            <div class="absolute -left-2 bottom-1/3 z-10 h-6 w-6 rounded-full bg-emerald-300/60"></div>
+          </div>
+
+          <!-- 下方装饰文字 -->
+          <p class="mt-4 text-center text-xs text-[#5c2e10]/60 italic font-handwriting">「 把它交给柠檬猫，让它住进你的桌面。」</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Step 2: 阶段化进度（模拟 AI 识别中） ============ -->
+    <div id="step-2-progress" class="view-block hidden">
+      <div class="mt-10 grid grid-cols-1 gap-12 lg:grid-cols-[1fr_1.1fr] lg:items-start">
+        <div>
+          <p class="text-sm text-[#5c2e10]/80">第 2 步 · 完善档案</p>
+          <h2 class="mt-2 text-3xl font-medium text-[#5c2e10]">它的样子，我们都记下了</h2>
+
+          <div id="progress-preview" class="mt-6 overflow-hidden rounded-3xl bg-amber-100/40 shadow-lg shadow-amber-900/5" style="aspect-ratio: 1 / 1;">
+            <!-- 上传预览或演示图 -->
+          </div>
+        </div>
+
+        <div class="rounded-[28px] bg-white/55 px-6 py-7 backdrop-blur-xl ring-1 ring-white/60 shadow-lg shadow-amber-900/5">
+          <p class="text-xs uppercase tracking-widest text-[#5c2e10]/70" id="stage-phase">正在读取照片</p>
+          <p class="mt-3 text-2xl font-medium text-[#5c2e10]" id="stage-line" style="min-height: 1.5em;">
+            <span class="inline-block anim-fadeIn">正在观察它的眼睛颜色...</span>
+          </p>
+          <div class="mt-4 flex items-center gap-1">
+            <span class="h-1.5 w-1.5 rounded-full bg-amber-600" style="animation: stage-progress-dot 1.2s infinite; animation-delay: 0ms;"></span>
+            <span class="h-1.5 w-1.5 rounded-full bg-amber-600" style="animation: stage-progress-dot 1.2s infinite; animation-delay: 200ms;"></span>
+            <span class="h-1.5 w-1.5 rounded-full bg-amber-600" style="animation: stage-progress-dot 1.2s infinite; animation-delay: 400ms;"></span>
+          </div>
+
+          <div class="mt-6 h-1.5 w-full overflow-hidden rounded-full bg-amber-200/60">
+            <div id="progress-bar" class="h-full bg-amber-700 transition-all duration-700 ease-out" style="width: 0%;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Step 2: 完善档案（编辑页） ============ -->
+    <div id="step-2-edit" class="view-block hidden">
+      <div class="mt-6 grid grid-cols-1 gap-12 lg:grid-cols-[1fr_1.1fr] lg:items-start">
+        <div>
+          <p class="text-sm text-[#5c2e10]/80">第 2 步 · 完善档案</p>
+          <h2 class="mt-2 text-3xl font-medium text-[#5c2e10]">它的样子，我们都记下了</h2>
+
+          <div id="edit-preview" class="mt-6 overflow-hidden rounded-3xl bg-amber-100/40 shadow-lg shadow-amber-900/5" style="aspect-ratio: 1 / 1;"></div>
+
+          <div class="mt-4">
+            <div class="flex items-center justify-between text-[11px] text-[#5c2e10]/70">
+              <span>必填项 <span id="filled-count">0</span>/3</span>
+              <span class="font-mono" id="filled-pct">0%</span>
+            </div>
+            <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-amber-200/60">
+              <div id="filled-bar" class="h-full bg-amber-700 transition-all duration-500 ease-out" style="width: 4%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-[28px] bg-white/55 px-8 py-9 backdrop-blur-xl ring-1 ring-white/60 shadow-lg shadow-amber-900/5">
+          <div class="space-y-7">
+            <div>
+              <label class="text-xs text-[#5c2e10]/80">它叫什么名字呀？<span class="text-rose-600">*</span></label>
+              <input id="in-name" type="text" placeholder="例如：尖叫、咪咪、Rex..." oninput="updateFilled()"
+                class="mt-2 w-full border-0 border-b border-amber-200 bg-transparent py-2 text-2xl font-medium text-[#5c2e10] placeholder:text-[#5c2e10]/35 focus:border-amber-600">
+            </div>
+            <div>
+              <label class="text-xs text-[#5c2e10]/80">它是什么样的性格？<span class="text-rose-600">*</span></label>
+              <input id="in-personality" type="text" placeholder="例如：机警、沉稳、温和、黏人" oninput="updateFilled()"
+                class="mt-2 w-full border-0 border-b border-amber-200 bg-transparent py-2 text-base text-[#5c2e10] placeholder:text-[#5c2e10]/35 focus:border-amber-600">
+            </div>
+            <div>
+              <label class="text-xs text-[#5c2e10]/80">有什么特别的外貌特征？<span class="text-rose-600">*</span></label>
+              <input id="in-features" type="text" placeholder="例如：右耳有缺口、尾巴末端偏深色" oninput="updateFilled()"
+                class="mt-2 w-full border-0 border-b border-amber-200 bg-transparent py-2 text-base text-[#5c2e10] placeholder:text-[#5c2e10]/35 focus:border-amber-600">
+            </div>
+          </div>
+
+          <div class="mt-8 rounded-2xl bg-[#F9F3E6]/70 p-5">
+            <p class="text-xs font-medium text-[#5c2e10]/90">📝 用户补充（选填）</p>
+            <label class="mt-3 block text-xs text-[#5c2e10]/80">和它的故事</label>
+            <textarea id="in-story" rows="3" placeholder="讲讲它的来历、习惯、你们之间的小故事..."
+              class="mt-2 w-full resize-none rounded-xl border border-amber-200/60 bg-white/50 px-4 py-3 text-sm text-[#5c2e10] placeholder:text-[#5c2e10]/35 focus:border-amber-600"></textarea>
+          </div>
+
+          <div class="mt-6 rounded-2xl bg-white/30 p-5">
+            <p class="mb-3 text-xs text-[#5c2e10]/80">AI 识别到的特征标签（点击移除）</p>
+            <div class="flex flex-wrap gap-1.5" id="ai-tags"></div>
+          </div>
+
+          <div class="mt-8 flex flex-wrap items-center gap-3">
+            <button onclick="goToPreview()" id="btn-preview"
+              class="rounded-full bg-amber-900 px-7 py-3 text-sm font-medium text-amber-50 shadow-lg shadow-amber-900/10 hover:bg-amber-800 disabled:opacity-50" disabled>
+              预览档案
+            </button>
+            <button onclick="resetCreate()" class="text-sm text-[#5c2e10]/80 hover:text-[#5c2e10]">重新上传</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Step 2 末: 档案预览确认 ============ -->
+    <div id="step-2-preview" class="view-block hidden">
+      <div class="mt-6 grid grid-cols-1 gap-12 lg:grid-cols-[1fr_1.1fr] lg:items-start">
+        <div>
+          <p class="text-sm text-[#5c2e10]/80">第 2 步 · 确认档案</p>
+          <h2 class="mt-2 text-3xl font-medium text-[#5c2e10]">看看 <span id="pv-name">咪咪</span> 的档案对不对</h2>
+
+          <div id="pv-preview" class="mt-6 overflow-hidden rounded-3xl bg-amber-100/40 shadow-lg shadow-amber-900/5" style="aspect-ratio: 1 / 1;"></div>
+        </div>
+
+        <div class="rounded-[28px] bg-white/55 px-8 py-9 backdrop-blur-xl ring-1 ring-white/60 shadow-lg shadow-amber-900/5">
+          <div class="space-y-5">
+            <div class="rounded-2xl bg-amber-50/50 px-5 py-4">
+              <p class="text-xs text-[#5c2e10]/60">名字</p>
+              <p class="mt-1 text-lg font-medium text-[#5c2e10]" id="pv-name-2">咪咪</p>
+            </div>
+            <div class="rounded-2xl bg-amber-50/50 px-5 py-4">
+              <p class="text-xs text-[#5c2e10]/60">性格</p>
+              <p class="mt-1 text-base text-[#5c2e10]" id="pv-personality">机警、黏人</p>
+            </div>
+            <div class="rounded-2xl bg-amber-50/50 px-5 py-4">
+              <p class="text-xs text-[#5c2e10]/60">特别特征</p>
+              <p class="mt-1 text-base text-[#5c2e10]" id="pv-features">右耳尖端有一小撮白毛</p>
+            </div>
+            <div id="pv-story-box" class="hidden rounded-2xl bg-[#F9F3E6]/70 px-5 py-4">
+              <p class="text-xs text-[#5c2e10]/60">和它的故事</p>
+              <p class="mt-1 text-sm leading-relaxed text-[#5c2e10]" id="pv-story"></p>
+            </div>
+            <div class="rounded-2xl bg-white/30 px-5 py-4">
+              <p class="text-xs text-[#5c2e10]/60">AI 识别标签</p>
+              <div class="mt-2 flex flex-wrap gap-1.5" id="pv-tags"></div>
+            </div>
+            <div class="rounded-2xl bg-white/30 px-5 py-4">
+              <p class="text-xs text-[#5c2e10]/60">AI 识别外貌</p>
+              <div class="mt-2 flex flex-wrap gap-2 text-xs text-[#5c2e10]" id="pv-profile"></div>
+            </div>
+          </div>
+
+          <div class="mt-8 flex flex-wrap items-center gap-3">
+            <button onclick="generateImages()" class="rounded-full bg-amber-900 px-7 py-3 text-sm font-medium text-amber-50 shadow-lg shadow-amber-900/10 hover:bg-amber-800">
+              确认，让它诞生 ✨
+            </button>
+            <button onclick="backToEdit()" class="text-sm text-[#5c2e10]/80 hover:text-[#5c2e10]">返回修改</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Step 3: 选择形象 ============ -->
+    <div id="step-3-results" class="view-block hidden">
+      <div class="mt-8 grid grid-cols-1 gap-12 lg:grid-cols-[1fr_1.1fr]">
+        <div>
+          <p class="text-sm text-[#5c2e10]/80">第 3 步 · 选择形象</p>
+          <h2 class="mt-2 text-3xl font-medium text-[#5c2e10]"><span id="rs-name">咪咪</span>，从照片里走出来了</h2>
+
+          <div id="rs-preview" class="mt-6 overflow-hidden rounded-3xl shadow-xl shadow-amber-900/5 bg-gradient-to-br from-amber-50 via-rose-50/40 to-amber-50 paint-border"
+            style="aspect-ratio: 1 / 1; display: grid; place-items: center;">
+            <!-- 主预览 -->
+          </div>
+
+          <div class="mt-4 rounded-2xl border border-amber-200/60 bg-white/45 px-4 py-3 text-sm text-[#5c2e10]/80">
+            <p class="font-medium text-[#5c2e10]">像素宠物小提示</p>
+            <p class="mt-1 text-xs leading-5 text-[#5c2e10]/75">
+              保存到档案后，可继续生成低密度像素精灵版，做成复古游戏风的桌面伙伴。
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-3" id="rs-grid">
+            <!-- 4 种风格缩略图，由 JS 渲染 -->
+          </div>
+
+          <div class="mt-8 flex flex-col gap-3">
+            <button onclick="saveArchive()" class="rounded-full bg-amber-900 px-7 py-3.5 text-sm font-medium text-amber-50 shadow-lg shadow-amber-900/10 hover:bg-amber-800">
+              保存到宠物档案
+            </button>
+            <button onclick="goToArchive()" class="rounded-full border border-amber-300 bg-white px-7 py-3.5 text-sm font-medium text-amber-900 shadow-lg shadow-amber-900/5 hover:bg-amber-50">
+              📁 查看我的赛博档案库 →
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 视图 2: 我的宠物（档案库）                                   -->
+  <!-- ============================================================ -->
+  <section id="view-archive" class="view">
+    <div class="h-[80px] sm:h-[120px]"></div>
+
+    <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div class="flex flex-col">
+        <div class="relative inline-block">
+          <h1 class="font-handwriting text-5xl text-[#5c2e10] sm:text-6xl lg:text-7xl leading-none drop-shadow-sm">
+            我的宠物
+          </h1>
+          <svg aria-hidden class="absolute -bottom-5 left-2 h-6 w-32 text-emerald-700/70" viewBox="0 0 120 24" fill="none">
+            <path d="M2 14 Q 18 4, 36 12 T 70 10 T 104 14 T 118 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none" />
+            <circle cx="22" cy="8" r="2" fill="currentColor" opacity="0.7" />
+            <circle cx="58" cy="8" r="2" fill="currentColor" opacity="0.7" />
+            <circle cx="92" cy="9" r="2" fill="currentColor" opacity="0.7" />
+          </svg>
+        </div>
+        <p class="mt-6 ml-1 text-sm text-[#5c2e10]/75">你所有毛孩子的数字档案都在这里</p>
+      </div>
+      <button onclick="createNewPet()" class="inline-flex items-center gap-1.5 rounded-full bg-[#e87a7a] px-5 py-2.5 text-sm font-bold text-white shadow-[0_6px_18px_-6px_rgba(232,122,122,0.7)] hover:bg-[#d86565]">
+        <span>✨</span>创建新的数字宠物
+      </button>
+    </header>
+
+    <!-- 三宫格统计 -->
+    <div class="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+      <div class="group relative flex items-center gap-3 rounded-[28px] bg-paper-glass px-5 py-4 ring-1 ring-[#f8c4a0]/60 shadow-sm">
+        <div class="grid h-12 w-12 place-items-center rounded-2xl text-2xl bg-[#f8c4a0]/55">🐾</div>
+        <div class="min-w-0 flex-1">
+          <div class="text-xs text-[#5c2e10]/75">总宠物</div>
+          <div class="num-art flex items-baseline gap-1 text-[#5c2e10]">
+            <span class="text-3xl" id="stat-total">5</span>
+            <span class="text-sm font-normal text-[#5c2e10]/60">只</span>
+          </div>
+        </div>
+      </div>
+      <div class="group relative flex items-center gap-3 rounded-[28px] bg-paper-glass px-5 py-4 ring-1 ring-[#f8a8a8]/60 shadow-sm">
+        <div class="grid h-12 w-12 place-items-center rounded-2xl text-2xl bg-[#f8a8a8]/50">💗</div>
+        <div class="min-w-0 flex-1">
+          <div class="text-xs text-[#5c2e10]/75">互动总数</div>
+          <div class="num-art flex items-baseline gap-1 text-[#5c2e10]">
+            <span class="text-3xl" id="stat-interact">128</span>
+            <span class="text-sm font-normal text-[#5c2e10]/60">次</span>
+          </div>
+        </div>
+      </div>
+      <div class="group relative flex items-center gap-3 rounded-[28px] bg-paper-glass px-5 py-4 ring-1 ring-[#a8e6b8]/60 shadow-sm">
+        <div class="grid h-12 w-12 place-items-center rounded-2xl text-2xl bg-[#a8e6b8]/55">🛋️</div>
+        <div class="min-w-0 flex-1">
+          <div class="text-xs text-[#5c2e10]/75">已召唤</div>
+          <div class="num-art flex items-baseline gap-1 text-[#5c2e10]">
+            <span class="text-3xl" id="stat-summoned">3</span>
+            <span class="text-sm font-normal text-[#5c2e10]/60">次</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 筛选 + 卡片网格 -->
+    <div class="grid grid-cols-1 gap-x-6 gap-y-10 pb-16 lg:grid-cols-[160px_1fr]">
+      <aside class="flex flex-row gap-2 lg:flex-col lg:gap-2.5">
+        <button onclick="filterArchive('all')" data-filter="all" class="filter-btn flex flex-1 items-center gap-2.5 rounded-2xl px-3.5 py-3 lg:flex-none lg:py-3.5 text-left text-sm transition-all bg-[#f8c4a0]/75 ring-2 ring-[#e89060] text-[#5c2e10] font-semibold">
+          <span class="text-lg">🐾</span>
+          <span>全部</span>
+          <span class="ml-auto text-xs opacity-80" id="cnt-all">5</span>
+        </button>
+        <button onclick="filterArchive('deployed')" data-filter="deployed" class="filter-btn flex flex-1 items-center gap-2.5 rounded-2xl px-3.5 py-3 lg:flex-none lg:py-3.5 text-left text-sm transition-all bg-paper-glass text-[#5c2e10]/80 hover:bg-paper-glass-strong">
+          <span class="text-lg">🌿</span>
+          <span class="font-semibold">活跃的</span>
+          <span class="ml-auto text-xs text-[#5c2e10]/55" id="cnt-deployed">3</span>
+        </button>
+        <button onclick="filterArchive('fav')" data-filter="fav" class="filter-btn flex flex-1 items-center gap-2.5 rounded-2xl px-3.5 py-3 lg:flex-none lg:py-3.5 text-left text-sm transition-all bg-paper-glass text-[#5c2e10]/80 hover:bg-paper-glass-strong">
+          <span class="text-lg">💗</span>
+          <span class="font-semibold">最喜欢</span>
+          <span class="ml-auto text-xs text-[#5c2e10]/55" id="cnt-fav">2</span>
+        </button>
+      </aside>
+
+      <div id="archive-grid" class="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 xl:grid-cols-3">
+        <!-- 由 JS 渲染 -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 视图 3: 诞生时刻（成功页）                                   -->
+  <!-- ============================================================ -->
+  <section id="view-success" class="view">
+    <div class="min-h-[calc(100vh-80px)] flex flex-col items-center justify-center py-10">
+      <p class="anim-success-rise text-sm font-medium text-amber-600">🐾 它的数字形态已生成</p>
+      <h1 class="anim-success-rise mt-2 text-4xl font-semibold text-amber-900" style="animation-delay: 0.1s;">诞生时刻</h1>
+      <p class="anim-success-rise mt-1 text-base text-amber-700" style="animation-delay: 0.2s;">
+        一只<span class="mx-1 font-semibold text-amber-900" id="suc-name">咪咪</span>，从照片里走出来了。
+      </p>
+
+      <div class="mt-8 grid w-full grid-cols-1 gap-5 md:grid-cols-[1.1fr_1fr]">
+        <!-- 左页：宠物图 -->
+        <div class="anim-success-fade relative overflow-hidden rounded-3xl border border-amber-200 bg-white/80 shadow-2xl" style="animation-delay: 0.3s;">
+          <div class="anim-glow-pulse pointer-events-none absolute inset-0" style="background: radial-gradient(ellipse 60% 50% at 50% 35%, rgba(254, 243, 199, 0.85) 0%, rgba(253, 230, 138, 0.4) 50%, transparent 80%);"></div>
+          <div id="suc-morph-img" class="relative h-80 w-full grid place-items-center bg-gradient-to-br from-amber-50 via-rose-50/40 to-amber-50"></div>
+          <div class="absolute bottom-3 left-3 rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-amber-800 shadow">
+            <span id="suc-style">水墨风</span> · <span id="suc-name-2">咪咪</span>
+          </div>
+        </div>
+
+        <!-- 右页：档案卡 -->
+        <div class="anim-success-fade rounded-3xl border border-amber-200 bg-white/90 p-6 shadow-xl" style="animation-delay: 0.5s;">
+          <div class="flex items-baseline justify-between">
+            <div>
+              <p class="text-[11px] font-semibold uppercase tracking-widest text-amber-500">数字档案</p>
+              <h2 class="mt-1 text-2xl font-semibold text-amber-900" id="suc-name-3">咪咪</h2>
+            </div>
+            <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">✓ 已就绪</span>
+          </div>
+
+          <p class="mt-4 text-sm leading-relaxed text-amber-800" id="suc-trait">咪咪，猫、橘色、绿色、大耳朵、机警、黏人、右耳尖端有一小撮白毛。</p>
+
+          <div class="mt-4 flex flex-wrap gap-1.5" id="suc-chips"></div>
+
+          <dl class="mt-5 space-y-2 border-t border-amber-100 pt-4 text-xs text-amber-700">
+            <div class="flex items-baseline justify-between">
+              <dt>数字编号</dt>
+              <dd class="font-mono text-amber-900" id="suc-id">PET-MIMI8X2A</dd>
+            </div>
+            <div class="flex items-baseline justify-between">
+              <dt>创建时间</dt>
+              <dd class="text-amber-900" id="suc-time">2026-07-15 14:32:18</dd>
+            </div>
+            <div class="flex items-baseline justify-between">
+              <dt>形态数量</dt>
+              <dd class="text-amber-900">4 张</dd>
+            </div>
+          </dl>
+
+          <div class="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <button onclick="goToArchive()" class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-amber-300 bg-white px-4 py-2.5 text-sm font-semibold text-amber-800 shadow-sm hover:bg-amber-50">
+              📁 查看档案
+            </button>
+            <button onclick="showView('create');resetCreate();" class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100">
+              ✨ 继续生成新形态
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <p class="anim-success-fade mt-8 text-xs text-amber-600" style="animation-delay: 0.7s;">
+        后续可以在「桌面陪伴」里为它选择陪伴模式 🛋️
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============================== 底部 Footer ============================== -->
+<footer class="border-t border-[#5c2e10]/10 py-6 text-center text-xs text-[#5c2e10]/60">
+  🍋 柠檬猫 · 数字宠物档案馆 · Demo 版（非生产环境）
+</footer>
+
+<!-- ============================== 演示用 SVG 库 ============================== -->
+<template id="tpl-pet-svg">
+  <!-- 4 种风格的演示宠物 SVG -->
+</template>
+
+<script>
+// ============================================================
+// 全局状态
+// ============================================================
+const STEPS = [
+  { idx: 1, title: "上传照片", caption: "拖入一张宠物照片" },
+  { idx: 2, title: "完善档案", caption: "确认它的数字档案" },
+  { idx: 3, title: "选择形象", caption: "挑一张它最像的样子" },
+  { idx: 4, title: "保存到档案", caption: "陪伴开始" }
+];
+
+const STYLES = [
+  { key: "shuimo", name: "水墨风", canvas: "watercolor", emoji: "🐱" },
+  { key: "pingzhi", name: "和纸拼贴风", canvas: "pink", emoji: "🐱" },
+  { key: "tieshi", name: "粗描边贴纸风", canvas: "green", emoji: "🐱" },
+  { key: "xiangsun", name: "复古像素风", canvas: "sky", emoji: "🐱" }
+];
+
+const PET_SVGS = {
+  // 简约水墨风
+  shuimo: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <radialGradient id="ink-glow" cx="50%" cy="50%">
+        <stop offset="0%" stop-color="#fff8ee" stop-opacity="0.6"/>
+        <stop offset="100%" stop-color="#fff8ee" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <circle cx="100" cy="100" r="80" fill="url(#ink-glow)"/>
+    <!-- 身体 -->
+    <ellipse cx="100" cy="135" rx="55" ry="42" fill="#3d2914" opacity="0.85"/>
+    <!-- 头 -->
+    <circle cx="100" cy="85" r="38" fill="#3d2914"/>
+    <!-- 耳朵 -->
+    <polygon points="72,65 80,40 95,60" fill="#3d2914"/>
+    <polygon points="128,65 120,40 105,60" fill="#3d2914"/>
+    <polygon points="76,62 82,46 90,60" fill="#f8c4a0"/>
+    <polygon points="124,62 118,46 110,60" fill="#f8c4a0"/>
+    <!-- 眼睛 -->
+    <ellipse cx="86" cy="88" rx="3" ry="5" fill="#fff8ee"/>
+    <ellipse cx="114" cy="88" rx="3" ry="5" fill="#fff8ee"/>
+    <circle cx="86" cy="89" r="1.5" fill="#3d2914"/>
+    <circle cx="114" cy="89" r="1.5" fill="#3d2914"/>
+    <!-- 鼻子嘴巴 -->
+    <polygon points="98,98 102,98 100,101" fill="#f8c4a0"/>
+    <path d="M100 101 Q96 106 92 103 M100 101 Q104 106 108 103" stroke="#fff8ee" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+    <!-- 胡须 -->
+    <line x1="60" y1="92" x2="80" y2="95" stroke="#3d2914" stroke-width="1" opacity="0.6"/>
+    <line x1="60" y1="98" x2="80" y2="98" stroke="#3d2914" stroke-width="1" opacity="0.6"/>
+    <line x1="140" y1="92" x2="120" y2="95" stroke="#3d2914" stroke-width="1" opacity="0.6"/>
+    <line x1="140" y1="98" x2="120" y2="98" stroke="#3d2914" stroke-width="1" opacity="0.6"/>
+    <!-- 尾巴 -->
+    <path d="M150 145 Q170 130 165 110 Q162 100 158 105" stroke="#3d2914" stroke-width="8" fill="none" stroke-linecap="round" opacity="0.85"/>
+    <!-- 水墨溅点 -->
+    <circle cx="40" cy="170" r="3" fill="#3d2914" opacity="0.2"/>
+    <circle cx="160" cy="50" r="2" fill="#3d2914" opacity="0.3"/>
+    <circle cx="50" cy="40" r="1.5" fill="#3d2914" opacity="0.25"/>
+  </svg>`,
+  // 拼贴风
+  pingzhi: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <!-- 背景纸片 -->
+    <rect x="30" y="50" width="60" height="50" fill="#fef3c7" transform="rotate(-8 60 75)"/>
+    <rect x="110" y="40" width="55" height="45" fill="#fce7f3" transform="rotate(6 137 62)"/>
+    <rect x="120" y="120" width="50" height="40" fill="#d9f99d" transform="rotate(-4 145 140)"/>
+    <!-- 身体（橙色三角） -->
+    <polygon points="55,140 145,140 130,180 70,180" fill="#fb923c"/>
+    <!-- 头（米色圆） -->
+    <circle cx="100" cy="95" r="42" fill="#fed7aa"/>
+    <!-- 耳朵（折耳造型） -->
+    <ellipse cx="70" cy="68" rx="10" ry="14" fill="#fb923c" transform="rotate(-30 70 68)"/>
+    <ellipse cx="130" cy="68" rx="10" ry="14" fill="#fb923c" transform="rotate(30 130 68)"/>
+    <!-- 眼睛 -->
+    <ellipse cx="85" cy="92" rx="5" ry="6" fill="#065f46"/>
+    <ellipse cx="115" cy="92" rx="5" ry="6" fill="#065f46"/>
+    <circle cx="86" cy="90" r="1.5" fill="#fff"/>
+    <circle cx="116" cy="90" r="1.5" fill="#fff"/>
+    <!-- 鼻子 -->
+    <polygon points="96,103 104,103 100,108" fill="#9a3412"/>
+    <path d="M100 108 Q95 113 92 110 M100 108 Q105 113 108 110" stroke="#7c2d12" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+    <!-- 腮红 -->
+    <ellipse cx="78" cy="103" rx="6" ry="3" fill="#fda4af" opacity="0.7"/>
+    <ellipse cx="122" cy="103" rx="6" ry="3" fill="#fda4af" opacity="0.7"/>
+    <!-- 胡须 -->
+    <line x1="60" y1="100" x2="80" y2="103" stroke="#7c2d12" stroke-width="1.2"/>
+    <line x1="60" y1="108" x2="80" y2="108" stroke="#7c2d12" stroke-width="1.2"/>
+    <line x1="140" y1="100" x2="120" y2="103" stroke="#7c2d12" stroke-width="1.2"/>
+    <line x1="140" y1="108" x2="120" y2="108" stroke="#7c2d12" stroke-width="1.2"/>
+    <!-- 尾巴 -->
+    <path d="M150 160 Q175 145 170 120" stroke="#fb923c" stroke-width="10" fill="none" stroke-linecap="round"/>
+  </svg>`,
+  // 贴纸风
+  tieshi: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <!-- 描边阴影 -->
+    <ellipse cx="100" cy="140" rx="62" ry="46" fill="#1e1b4b"/>
+    <circle cx="100" cy="90" r="44" fill="#1e1b4b"/>
+    <!-- 身体 -->
+    <ellipse cx="100" cy="140" rx="58" ry="42" fill="#fef3c7"/>
+    <!-- 头 -->
+    <circle cx="100" cy="90" r="40" fill="#fef9c3"/>
+    <!-- 耳朵 -->
+    <polygon points="68,68 78,38 92,62" fill="#fef9c3" stroke="#1e1b4b" stroke-width="3" stroke-linejoin="round"/>
+    <polygon points="132,68 122,38 108,62" fill="#fef9c3" stroke="#1e1b4b" stroke-width="3" stroke-linejoin="round"/>
+    <polygon points="76,64 82,48 88,60" fill="#f8a8a8"/>
+    <polygon points="124,64 118,48 112,60" fill="#f8a8a8"/>
+    <!-- 眼睛 -->
+    <ellipse cx="86" cy="92" rx="5" ry="7" fill="#1e1b4b"/>
+    <ellipse cx="114" cy="92" rx="5" ry="7" fill="#1e1b4b"/>
+    <circle cx="87" cy="89" r="1.8" fill="#fff"/>
+    <circle cx="115" cy="89" r="1.8" fill="#fff"/>
+    <!-- 鼻子 -->
+    <polygon points="96,103 104,103 100,108" fill="#1e1b4b"/>
+    <path d="M100 108 Q94 115 90 111 M100 108 Q106 115 110 111" stroke="#1e1b4b" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <!-- 腮红 -->
+    <circle cx="76" cy="105" r="5" fill="#fda4af" opacity="0.6"/>
+    <circle cx="124" cy="105" r="5" fill="#fda4af" opacity="0.6"/>
+    <!-- 胡须 -->
+    <line x1="58" y1="100" x2="80" y2="103" stroke="#1e1b4b" stroke-width="2"/>
+    <line x1="58" y1="108" x2="80" y2="108" stroke="#1e1b4b" stroke-width="2"/>
+    <line x1="142" y1="100" x2="120" y2="103" stroke="#1e1b4b" stroke-width="2"/>
+    <line x1="142" y1="108" x2="120" y2="108" stroke="#1e1b4b" stroke-width="2"/>
+    <!-- 尾巴 -->
+    <path d="M155 155 Q180 140 175 110" stroke="#1e1b4b" stroke-width="14" fill="none" stroke-linecap="round"/>
+    <path d="M155 155 Q180 140 175 110" stroke="#fef9c3" stroke-width="10" fill="none" stroke-linecap="round"/>
+  </svg>`,
+  // 像素风
+  xiangsun: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+    <!-- 背景 -->
+    <rect width="200" height="200" fill="#0f172a"/>
+    <!-- 星星 -->
+    <rect x="20" y="30" width="2" height="2" fill="#fef3c7"/>
+    <rect x="60" y="20" width="2" height="2" fill="#fef3c7"/>
+    <rect x="120" y="35" width="2" height="2" fill="#fef3c7"/>
+    <rect x="170" y="25" width="2" height="2" fill="#fef3c7"/>
+    <rect x="180" y="80" width="2" height="2" fill="#fef3c7"/>
+    <!-- 主体（24x24 像素网格，sprite-cat-1.png 风格） -->
+    <g transform="translate(50 50)">
+      <!-- 身体 -->
+      <rect x="20" y="50" width="60" height="35" fill="#f97316"/>
+      <rect x="20" y="55" width="60" height="3" fill="#fb923c"/>
+      <rect x="20" y="80" width="60" height="3" fill="#c2410c"/>
+      <!-- 头 -->
+      <rect x="30" y="20" width="40" height="35" fill="#fb923c"/>
+      <!-- 耳朵 -->
+      <rect x="30" y="10" width="8" height="12" fill="#f97316"/>
+      <rect x="32" y="14" width="4" height="6" fill="#fda4af"/>
+      <rect x="62" y="10" width="8" height="12" fill="#f97316"/>
+      <rect x="64" y="14" width="4" height="6" fill="#fda4af"/>
+      <!-- 眼睛 -->
+      <rect x="38" y="32" width="4" height="6" fill="#0f172a"/>
+      <rect x="58" y="32" width="4" height="6" fill="#0f172a"/>
+      <rect x="39" y="33" width="2" height="2" fill="#fff"/>
+      <rect x="59" y="33" width="2" height="2" fill="#fff"/>
+      <!-- 鼻子 -->
+      <rect x="48" y="44" width="4" height="3" fill="#7c2d12"/>
+      <!-- 嘴 -->
+      <rect x="46" y="48" width="3" height="2" fill="#0f172a"/>
+      <rect x="51" y="48" width="3" height="2" fill="#0f172a"/>
+      <!-- 胡须 -->
+      <rect x="20" y="42" width="10" height="1" fill="#fef3c7"/>
+      <rect x="20" y="46" width="10" height="1" fill="#fef3c7"/>
+      <rect x="70" y="42" width="10" height="1" fill="#fef3c7"/>
+      <rect x="70" y="46" width="10" height="1" fill="#fef3c7"/>
+      <!-- 尾巴 -->
+      <rect x="78" y="55" width="6" height="3" fill="#f97316"/>
+      <rect x="82" y="48" width="4" height="8" fill="#f97316"/>
+      <rect x="80" y="40" width="4" height="9" fill="#f97316"/>
+      <!-- 四肢 -->
+      <rect x="20" y="85" width="8" height="6" fill="#f97316"/>
+      <rect x="72" y="85" width="8" height="6" fill="#f97316"/>
+    </g>
+  </svg>`
+};
+
+// 演示用存档数据（5 只宠物）
+const DEMO_ARCHIVES = [
+  {
+    id: "mimi8x2a",
+    petName: "咪咪",
+    species: "猫", furColor: "橘色", eyeColor: "绿色", earShape: "大耳朵", bodyType: "圆润",
+    petVibe: "机警、黏人",
+    customFeatures: "右耳尖端有一小撮白毛",
+    petStory: "高一那年从校门口捡回来的，现在 5 岁了。",
+    hasFav: true,
+    needsFix: false,
+    deployedAt: Date.now() - 86400000,
+    lastSummonedAt: Date.now() - 3600000,
+    interactionTotal: 42,
+    interactionToday: 3,
+    createdAt: Date.now() - 7 * 86400000,
+    currentMorphIndex: 0,
+    results: [{ style: "水墨风", imageUrl: PET_SVGS.shuimo }],
+    pixelPet: { previewUrl: PET_SVGS.xiangsun, sourceStyle: "水墨风", template: "tuxedo" }
+  },
+  {
+    id: "laosan7b",
+    petName: "老三",
+    species: "狗", furColor: "棕色", eyeColor: "棕色", earShape: "垂耳", bodyType: "中型",
+    petVibe: "沉稳、亲人",
+    customFeatures: "额头上有一道白色闪电纹",
+    petStory: "",
+    hasFav: true,
+    needsFix: false,
+    deployedAt: Date.now() - 3 * 86400000,
+    lastSummonedAt: Date.now() - 2 * 86400000,
+    interactionTotal: 28,
+    interactionToday: 0,
+    createdAt: Date.now() - 30 * 86400000,
+    currentMorphIndex: 0,
+    results: [{ style: "贴纸风", imageUrl: PET_SVGS.tieshi }],
+    pixelPet: null
+  },
+  {
+    id: "doudou9c",
+    petName: "豆豆",
+    species: "猫", furColor: "黑白", eyeColor: "蓝色", earShape: "折耳", bodyType: "圆润",
+    petVibe: "安静、内敛",
+    customFeatures: "左前爪是白袜子",
+    petStory: "外婆家的猫，每次寒暑假回去都要找她玩。",
+    hasFav: false,
+    needsFix: false,
+    deployedAt: Date.now() - 14 * 86400000,
+    lastSummonedAt: Date.now() - 5 * 86400000,
+    interactionTotal: 15,
+    interactionToday: 0,
+    createdAt: Date.now() - 60 * 86400000,
+    currentMorphIndex: 0,
+    results: [{ style: "拼贴风", imageUrl: PET_SVGS.pingzhi }],
+    pixelPet: null
+  },
+  {
+    id: "baibai2k",
+    petName: "白白",
+    species: "猫", furColor: "白色", eyeColor: "异色", earShape: "大耳朵", bodyType: "修长",
+    petVibe: "高冷",
+    customFeatures: "",
+    petStory: "",
+    hasFav: false,
+    needsFix: true,
+    deployedAt: 0,
+    lastSummonedAt: 0,
+    interactionTotal: 5,
+    interactionToday: 0,
+    createdAt: Date.now() - 2 * 86400000,
+    currentMorphIndex: 0,
+    results: [{ style: "水墨风", imageUrl: PET_SVGS.shuimo }],
+    pixelPet: null
+  },
+  {
+    id: "pangzi5x",
+    petName: "胖子",
+    species: "狗", furColor: "黄色", eyeColor: "棕色", earShape: "垂耳", bodyType: "圆润",
+    petVibe: "贪吃、活泼",
+    customFeatures: "舌头永远伸在外面一截",
+    petStory: "",
+    hasFav: false,
+    needsFix: false,
+    deployedAt: 0,
+    lastSummonedAt: 0,
+    interactionTotal: 0,
+    interactionToday: 0,
+    createdAt: Date.now() - 86400000,
+    currentMorphIndex: 0,
+    results: [{ style: "像素风", imageUrl: PET_SVGS.xiangsun }],
+    pixelPet: null
+  }
+];
+
+const STATE = {
+  currentView: 'create',
+  currentStep: 1,
+  archives: JSON.parse(JSON.stringify(DEMO_ARCHIVES)),
+  currentFilter: 'all',
+  draftPet: {
+    name: "",
+    personality: "",
+    features: "",
+    story: "",
+    tags: ["橘色", "短毛", "圆脸"],
+    photoUrl: PET_SVGS.shuimo,
+    profile: { species: "猫", furColor: "橘色", eyeColor: "绿色", earShape: "大耳朵", bodyType: "圆润" }
+  },
+  selectedStyle: 0
+};
+
+// ============================================================
+// 视图切换
+// ============================================================
+function showView(name) {
+  STATE.currentView = name;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  // 顶部导航高亮
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    b.classList.toggle('bg-amber-100/60', b.dataset.view === name);
+    b.classList.toggle('font-semibold', b.dataset.view === name);
+  });
+  // 滚到顶部
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  if (name === 'create') renderRibbon();
+  if (name === 'archive') renderArchive();
+}
+
+function resetCreate() {
+  STATE.currentStep = 1;
+  STATE.draftPet = {
+    name: "", personality: "", features: "", story: "",
+    tags: ["橘色", "短毛", "圆脸"],
+    photoUrl: PET_SVGS.shuimo,
+    profile: { species: "猫", furColor: "橘色", eyeColor: "绿色", earShape: "大耳朵", bodyType: "圆润" }
+  };
+  STATE.selectedStyle = 0;
+  showStep(1);
+  document.getElementById('photo-btn-text').textContent = '选择一张照片';
+  document.getElementById('photo-name').classList.add('hidden');
+  document.getElementById('in-name').value = '';
+  document.getElementById('in-personality').value = '';
+  document.getElementById('in-features').value = '';
+  document.getElementById('in-story').value = '';
+}
+
+function createNewPet() {
+  // 先重置状态（避免上次的步骤被记住），再切换视图
+  resetCreate();
+  showView('create');
+}
+
+function renderRibbon() {
+  const list = document.getElementById('ribbon-list');
+  list.innerHTML = STEPS.map((s, i) => {
+    const done = s.idx < STATE.currentStep;
+    const active = s.idx === STATE.currentStep;
+    return `
+      <li class="flex flex-1 items-center gap-2 sm:gap-3">
+        <span class="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] transition-colors ${
+          active ? 'bg-amber-700 font-semibold text-amber-50'
+            : done ? 'bg-amber-200 text-[#5c2e10]'
+            : 'text-[#5c2e10]/40 ring-1 ring-inset ring-amber-200'
+        }">${done ? '✓' : s.idx}</span>
+        <span class="hidden sm:inline text-[12px] ${
+          active ? 'font-medium text-[#5c2e10]' : done ? 'text-[#5c2e10]' : 'text-[#5c2e10]/60'
+        }">${s.title}</span>
+        ${i < STEPS.length - 1 ? `<span class="h-px flex-1 transition-colors ${done ? 'bg-amber-300' : 'bg-amber-200/60'}"></span>` : ''}
+      </li>
+    `;
+  }).join('');
+}
+
+function showStep(step) {
+  STATE.currentStep = step;
+  document.querySelectorAll('#view-create .view-block').forEach(b => b.classList.remove('active'));
+  const map = {
+    1: 'step-1',
+    '2a': 'step-2-progress',
+    '2b': 'step-2-edit',
+    '2c': 'step-2-preview',
+    3: 'step-3-results'
+  };
+  const id = map[step];
+  if (id) document.getElementById(id).classList.add('active');
+  renderRibbon();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ============================================================
+// Step 1: 上传照片
+// ============================================================
+function onPhotoSelect(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { alert('请上传图片文件'); return; }
+  const url = URL.createObjectURL(file);
+  STATE.draftPet.photoUrl = url;
+  document.getElementById('photo-btn-text').textContent = '重新选择照片';
+  document.getElementById('photo-name-text').textContent = file.name;
+  document.getElementById('photo-name').classList.remove('hidden');
+  // 跳到 AI 识别中
+  startAiProcessing();
+}
+
+function loadDemoPet() {
+  STATE.draftPet.photoUrl = PET_SVGS.shuimo;
+  STATE.draftPet.name = "咪咪";
+  STATE.draftPet.personality = "机警、黏人";
+  STATE.draftPet.features = "右耳尖端有一小撮白毛";
+  STATE.draftPet.story = "高一那年从校门口捡回来的，现在 5 岁了。";
+  document.getElementById('photo-btn-text').textContent = '演示模式已激活';
+  document.getElementById('photo-name-text').textContent = 'demo_mimi.png';
+  document.getElementById('photo-name').classList.remove('hidden');
+  startAiProcessing();
+}
+
+function toggleTips() {
+  const list = document.getElementById('tips-list');
+  const arrow = document.getElementById('tips-arrow');
+  const show = list.classList.toggle('hidden');
+  arrow.classList.toggle('rotate-90', !show);
+}
+
+// ============================================================
+// Step 2a: AI 识别中（模拟进度）
+// ============================================================
+let aiTimers = [];
+function startAiProcessing() {
+  showStep('2a');
+  const preview = document.getElementById('progress-preview');
+  preview.innerHTML = STATE.draftPet.photoUrl.startsWith('data:') || STATE.draftPet.photoUrl.startsWith('blob:') || STATE.draftPet.photoUrl.length < 200
+    ? `<img src="${STATE.draftPet.photoUrl}" class="h-full w-full object-cover">`
+    : `<div class="h-full w-full grid place-items-center">${STATE.draftPet.photoUrl}</div>`;
+  const phases = [
+    { phase: "正在读取照片", lines: ["正在观察它的眼睛颜色...", "正在记录它的耳朵轮廓...", "正在保留它最特别的神态..."], pct: 35 },
+    { phase: "正在为它建立档案", lines: ["正在为它打上性格标签...", "正在为它匹配物种特征...", "正在记录它的小细节..."], pct: 70 },
+    { phase: "正在生成数字形象", lines: ["正在构建它的真实骨骼比例...", "正在还原它的自然神态...", "正在为它铺一层柔光..."], pct: 95 }
+  ];
+  let pIdx = 0, lIdx = 0;
+  aiTimers.forEach(t => clearTimeout(t));
+  aiTimers = [];
+  const phaseEl = document.getElementById('stage-phase');
+  const lineEl = document.getElementById('stage-line');
+  const barEl = document.getElementById('progress-bar');
+
+  function tick() {
+    if (pIdx >= phases.length) {
+      setTimeout(() => goToEdit(), 500);
+      return;
+    }
+    const p = phases[pIdx];
+    phaseEl.textContent = p.phase;
+    lineEl.innerHTML = `<span class="inline-block anim-fadeIn">${p.lines[lIdx % p.lines.length]}</span>`;
+    barEl.style.width = p.pct + '%';
+    lIdx++;
+    if (lIdx >= p.lines.length) { pIdx++; lIdx = 0; }
+    aiTimers.push(setTimeout(tick, 1800));
+  }
+  tick();
+}
+
+// ============================================================
+// Step 2b: 完善档案
+// ============================================================
+function goToEdit() {
+  showStep('2b');
+  const preview = document.getElementById('edit-preview');
+  const photo = STATE.draftPet.photoUrl;
+  preview.innerHTML = (photo.startsWith('data:') || photo.startsWith('blob:') || photo.length < 200)
+    ? `<img src="${photo}" class="h-full w-full object-cover">`
+    : photo;
+  document.getElementById('in-name').value = STATE.draftPet.name;
+  document.getElementById('in-personality').value = STATE.draftPet.personality;
+  document.getElementById('in-features').value = STATE.draftPet.features;
+  document.getElementById('in-story').value = STATE.draftPet.story;
+  renderAiTags();
+  updateFilled();
+}
+
+function renderAiTags() {
+  const c = document.getElementById('ai-tags');
+  c.innerHTML = STATE.draftPet.tags.map((t, i) =>
+    `<span onclick="removeTag(${i})" class="cursor-pointer rounded-full bg-amber-100/60 px-3 py-1 text-xs text-[#5c2e10] hover:bg-rose-100 hover:text-rose-700">${t} ×</span>`
+  ).join('');
+}
+function removeTag(i) {
+  STATE.draftPet.tags.splice(i, 1);
+  renderAiTags();
+}
+
+function updateFilled() {
+  STATE.draftPet.name = document.getElementById('in-name').value;
+  STATE.draftPet.personality = document.getElementById('in-personality').value;
+  STATE.draftPet.features = document.getElementById('in-features').value;
+  STATE.draftPet.story = document.getElementById('in-story').value;
+  const filled = [STATE.draftPet.name.trim(), STATE.draftPet.personality.trim(), STATE.draftPet.features.trim()].filter(Boolean).length;
+  const pct = Math.round((filled / 3) * 100);
+  document.getElementById('filled-count').textContent = filled;
+  document.getElementById('filled-pct').textContent = pct + '%';
+  document.getElementById('filled-bar').style.width = Math.max(4, pct) + '%';
+  document.getElementById('btn-preview').disabled = filled < 3;
+}
+
+// ============================================================
+// Step 2c: 档案预览
+// ============================================================
+function goToPreview() {
+  showStep('2c');
+  const preview = document.getElementById('pv-preview');
+  const photo = STATE.draftPet.photoUrl;
+  preview.innerHTML = (photo.startsWith('data:') || photo.startsWith('blob:') || photo.length < 200)
+    ? `<img src="${photo}" class="h-full w-full object-cover">`
+    : photo;
+  document.getElementById('pv-name').textContent = STATE.draftPet.name;
+  document.getElementById('pv-name-2').textContent = STATE.draftPet.name;
+  document.getElementById('pv-personality').textContent = STATE.draftPet.personality || "未填写";
+  document.getElementById('pv-features').textContent = STATE.draftPet.features || "未填写";
+  if (STATE.draftPet.story) {
+    document.getElementById('pv-story').textContent = STATE.draftPet.story;
+    document.getElementById('pv-story-box').classList.remove('hidden');
+  } else {
+    document.getElementById('pv-story-box').classList.add('hidden');
+  }
+  document.getElementById('pv-tags').innerHTML = STATE.draftPet.tags.map(t =>
+    `<span class="rounded-full bg-amber-100/60 px-3 py-1 text-xs text-[#5c2e10]">${t}</span>`
+  ).join('');
+  const p = STATE.draftPet.profile;
+  const profileChips = [p.species, p.furColor, p.eyeColor, p.earShape, p.bodyType].filter(Boolean);
+  document.getElementById('pv-profile').innerHTML = profileChips.map(t =>
+    `<span class="rounded-full bg-amber-100/60 px-2.5 py-1">${t}</span>`
+  ).join('');
+}
+
+function backToEdit() { goToEdit(); }
+
+// ============================================================
+// Step 3: 选择形象（模拟 4 风格生成）
+// ============================================================
+function generateImages() {
+  showStep(3);
+  renderResultsGrid();
+  // 主预览默认为选中第一个
+  selectStyle(0);
+}
+
+function renderResultsGrid() {
+  const grid = document.getElementById('rs-grid');
+  document.getElementById('rs-name').textContent = STATE.draftPet.name;
+  grid.innerHTML = STYLES.map((s, i) => `
+    <button onclick="selectStyle(${i})" data-style="${i}" class="pet-card overflow-hidden rounded-2xl bg-amber-50/40 text-left transition ${i === STATE.selectedStyle ? 'selected' : ''}">
+      <div class="pet-img-wrap aspect-square w-full p-3 transition-shadow rounded-2xl">${PET_SVGS[s.key]}</div>
+      <div class="px-2 py-1.5 text-[11px] text-[#5c2e10]">${s.name} · ${STATE.draftPet.name}</div>
+    </button>
+  `).join('');
+}
+
+function selectStyle(idx) {
+  STATE.selectedStyle = idx;
+  document.querySelectorAll('.pet-card').forEach((c, i) => {
+    c.classList.toggle('selected', i === idx);
+  });
+  const preview = document.getElementById('rs-preview');
+  preview.innerHTML = PET_SVGS[STYLES[idx].key];
+}
+
+// ============================================================
+// 保存到档案
+// ============================================================
+function saveArchive() {
+  // 把当前 draft 写入 archives 列表
+  const newArchive = {
+    id: (STATE.draftPet.name || 'pet').slice(0, 4).toLowerCase() + Math.random().toString(36).slice(2, 5),
+    petName: STATE.draftPet.name,
+    species: STATE.draftPet.profile.species,
+    furColor: STATE.draftPet.profile.furColor,
+    eyeColor: STATE.draftPet.profile.eyeColor,
+    earShape: STATE.draftPet.profile.earShape,
+    bodyType: STATE.draftPet.profile.bodyType,
+    petVibe: STATE.draftPet.personality,
+    customFeatures: STATE.draftPet.features,
+    petStory: STATE.draftPet.story,
+    hasFav: false,
+    needsFix: false,
+    deployedAt: 0,
+    lastSummonedAt: 0,
+    interactionTotal: 0,
+    interactionToday: 0,
+    createdAt: Date.now(),
+    currentMorphIndex: STATE.selectedStyle,
+    results: [{ style: STYLES[STATE.selectedStyle].name, imageUrl: PET_SVGS[STYLES[STATE.selectedStyle].key] }],
+    pixelPet: null
+  };
+  STATE.archives.unshift(newArchive);
+  // 跳到诞生时刻页
+  showSuccessPage(newArchive);
+}
+
+function showSuccessPage(archive) {
+  showView('success');
+  document.getElementById('suc-name').textContent = archive.petName;
+  document.getElementById('suc-name-2').textContent = archive.petName;
+  document.getElementById('suc-name-3').textContent = archive.petName;
+  document.getElementById('suc-style').textContent = STYLES[archive.currentMorphIndex].name;
+  document.getElementById('suc-morph-img').innerHTML = PET_SVGS[STYLES[archive.currentMorphIndex].key];
+  const trait = [archive.species, archive.furColor, archive.eyeColor, archive.earShape, archive.bodyType, archive.petVibe, archive.customFeatures].filter(Boolean);
+  document.getElementById('suc-trait').textContent = `${archive.petName}，${trait.join('、')}。`;
+  document.getElementById('suc-chips').innerHTML = trait.map(t =>
+    `<span class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-800">${t}</span>`
+  ).join('');
+  document.getElementById('suc-id').textContent = 'PET-' + archive.id.slice(0, 8).toUpperCase();
+  const d = new Date(archive.createdAt);
+  document.getElementById('suc-time').textContent = d.toLocaleString('zh-CN', { hour12: false });
+}
+
+function goToArchive() {
+  showView('archive');
+}
+
+// ============================================================
+// 档案库渲染
+// ============================================================
+function canvasOf(id) {
+  const canvases = ['watercolor', 'pink', 'green', 'sky'];
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return canvases[Math.abs(h) % canvases.length];
+}
+const CANVAS_BG = {
+  watercolor: 'bg-canvas-watercolor',
+  pink: 'bg-canvas-pink',
+  green: 'bg-canvas-green',
+  sky: 'bg-canvas-sky'
+};
+
+function statusOf(a) {
+  if (a.hasFav) return 'fav';
+  if (a.needsFix) return 'needs_fix';
+  if (a.deployedAt > 0) return 'deployed';
+  if ((a.results || []).length > 0) return 'ready';
+  return 'error';
+}
+
+function renderArchive() {
+  // 统计
+  let total = STATE.archives.length;
+  let interactTotal = 0, interactToday = 0, summoned = 0;
+  let fav = 0, deployed = 0;
+  const startTs = new Date().setHours(0,0,0,0);
+  STATE.archives.forEach(a => {
+    interactTotal += a.interactionTotal || 0;
+    interactToday += a.interactionToday || 0;
+    if (a.deployedAt > 0) summoned++;
+    if (a.hasFav) fav++;
+    if (a.deployedAt > 0) deployed++;
+    if ((!a.interactionToday) && a.lastSummonedAt >= startTs) interactToday += 1;
+  });
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-interact').textContent = interactTotal;
+  document.getElementById('stat-summoned').textContent = summoned;
+  document.getElementById('cnt-all').textContent = total;
+  document.getElementById('cnt-deployed').textContent = deployed;
+  document.getElementById('cnt-fav').textContent = fav;
+
+  // 筛选
+  const filtered = STATE.currentFilter === 'all'
+    ? STATE.archives
+    : STATE.archives.filter(a => statusOf(a) === STATE.currentFilter);
+
+  // 渲染网格
+  const grid = document.getElementById('archive-grid');
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="col-span-full py-16 text-center bg-paper-glass rounded-3xl">
+      <div class="text-3xl mb-3">🫥</div>
+      <p class="text-sm text-[#5c2e10]/70">这个分类下还没有宠物</p>
+    </div>`;
+    return;
+  }
+  grid.innerHTML = filtered.map(a => {
+    const canvas = canvasOf(a.id);
+    const result = (a.results || [])[a.currentMorphIndex || 0];
+    const img = result ? result.imageUrl : '';
+    const hasPixel = !!(a.pixelPet && a.pixelPet.previewUrl);
+    return `
+      <article class="pet-card group relative -translate-y-0 transition-transform duration-300 hover:-translate-y-1.5">
+        <div class="relative aspect-[5/4] w-full overflow-hidden rounded-[28px] ${CANVAS_BG[canvas]} paint-border">
+          <div class="pointer-events-none absolute inset-0 bg-paper-noise opacity-25"></div>
+
+          <!-- 状态徽章 -->
+          <div class="absolute left-3 top-3 z-10 flex items-center gap-1.5">
+            ${hasPixel
+              ? `<span class="inline-flex items-center gap-1 rounded-full bg-emerald-100/85 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-300 backdrop-blur">
+                   <span>🧊</span>像素已就绪
+                 </span>`
+              : `<span class="inline-flex items-center gap-1 rounded-full bg-amber-100/80 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-300 backdrop-blur">
+                   <span>✨</span>等待像素化
+                 </span>`}
+          </div>
+
+          <!-- 宠物图 -->
+          <div class="absolute inset-0 flex items-center justify-center p-3 pb-14 transition-transform duration-500 group-hover:scale-[1.04]">
+            ${img || '<div class="text-6xl text-[#5c2e10]/30">🐾</div>'}
+          </div>
+
+          <!-- 底部信息条 -->
+          <div class="absolute inset-x-3 bottom-3 z-10 rounded-2xl bg-white/55 px-3.5 py-2 backdrop-blur-md ring-1 ring-white/60">
+            <div class="flex items-center justify-between">
+              <h2 class="font-handwriting text-xl text-[#5c2e10] truncate pr-2">${a.petName}</h2>
+              <div class="flex shrink-0 items-center gap-1">
+                <button onclick="event.stopPropagation();toggleFav('${a.id}')"
+                  class="grid h-9 w-9 place-items-center rounded-full transition-colors hover:bg-rose-100/75 ${a.hasFav ? 'text-rose-500' : 'text-[#5c2e10]/50 hover:text-rose-500'}">
+                  <span class="text-base">${a.hasFav ? '💗' : '❤️'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+    `;
+  }).join('');
+}
+
+function toggleFav(id) {
+  const a = STATE.archives.find(x => x.id === id);
+  if (!a) return;
+  a.hasFav = !a.hasFav;
+  renderArchive();
+}
+
+function filterArchive(f) {
+  STATE.currentFilter = f;
+  // 按钮高亮
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    const isActive = b.dataset.filter === f;
+    b.className = b.className.replace(/bg-\[#f8c4a0\]\/75 ring-2 ring-\[#e89060\] text-\[#5c2e10\] font-semibold/g, '').trim();
+    b.className = b.className.replace(/bg-paper-glass text-\[#5c2e10\]\/80 hover:bg-paper-glass-strong/g, '').trim();
+    if (isActive && f === 'all') {
+      b.className = 'filter-btn flex flex-1 items-center gap-2.5 rounded-2xl px-3.5 py-3 lg:flex-none lg:py-3.5 text-left text-sm transition-all bg-[#f8c4a0]/75 ring-2 ring-[#e89060] text-[#5c2e10] font-semibold';
+    } else if (isActive && f === 'deployed') {
+      b.className = 'filter-btn flex flex-1 items-center gap-2.5 rounded-2xl px-3.5 py-3 lg:flex-none lg:py-3.5 text-left text-sm transition-all bg-[#bbf7d0]/85 ring-2 ring-emerald-500 text-[#14532d] font-semibold';
+    } else if (isActive && f === 'fav') {
+      b.className = 'filter-btn flex flex-1 items-center gap-2.5 rounded-2xl px-3.5 py-3 lg:flex-none lg:py-3.5 text-left text-sm transition-all bg-[#fecaca]/85 ring-2 ring-rose-400 text-[#7c1d3a] font-semibold';
+    } else {
+      b.className = 'filter-btn flex flex-1 items-center gap-2.5 rounded-2xl px-3.5 py-3 lg:flex-none lg:py-3.5 text-left text-sm transition-all bg-paper-glass text-[#5c2e10]/80 hover:bg-paper-glass-strong';
+    }
+  });
+  renderArchive();
+}
+
+// ============================================================
+// 初始化
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  showView('create');
+  showStep(1);
+});
+</script>
+
+</body>
+</html>

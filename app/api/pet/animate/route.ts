@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
+import { resolveLocalAssetUrl } from "@/lib/pet/local-url.js";
 import animationProviderModule from "@/lib/pet/animation-provider.js";
 import dashscopeVideoConfigModule from "@/lib/pet/dashscope-video-config.js";
 
@@ -60,20 +61,12 @@ async function dashscopeFetch(
 
 import { mattingVideo } from "@/lib/pet/rvm-matting.js";
 import { buildIdlePrompt as buildIdlePromptWithStyle } from "@/lib/pet/animation-prompt.js";
-import { createAnimationTracker } from "@/lib/pet/animation-tracker.js";
+import { getAnimationTracker } from "@/lib/pet/task-store";
 import { parseLocalResultImagePath, getResultImageFilePath } from "@/lib/db/archive";
 
 // In-process tracker shared by /api/pet/animate (writer) and
 // /api/pet/animation-status (reader). In dev mode Next.js may reload the
 // route module; we cache the tracker on globalThis so state survives HMR.
-type GlobalWithTracker = typeof globalThis & {
-  __petAnimationTracker?: ReturnType<typeof createAnimationTracker>;
-};
-const globalAny = globalThis as GlobalWithTracker;
-if (!globalAny.__petAnimationTracker) {
-  globalAny.__petAnimationTracker = createAnimationTracker();
-}
-const tracker = globalAny.__petAnimationTracker;
 
 function ensureVideoDir() {
   const dir = path.join(process.cwd(), "public", "pet-videos");
@@ -105,10 +98,7 @@ async function fetchImageBuffer(sourceUrl: string, requestUrl: string) {
   // 2. 如果不是本地档案图，或者文件不存在，回退到网络请求。
   // 严禁用 new URL(sourceUrl, requestUrl)，requestUrl 在 Railway 反代下会
   // 变成 https://localhost:PORT，反而触发 SSL 错误。统一用 http loopback。
-  const port = process.env.PORT || "8080";
-  const target = sourceUrl.startsWith("/")
-    ? `http://127.0.0.1:${port}${sourceUrl}`
-    : sourceUrl;
+  const target = resolveLocalAssetUrl(sourceUrl, requestUrl);
   const response = await fetch(target);
   if (!response.ok) {
     throw new Error(`参考图下载失败 (${response.status})`);
@@ -295,6 +285,7 @@ async function runJobForTask(
     requestUrl: string;
   }
 ) {
+  const tracker = getAnimationTracker();
   const onStatus = (s: string) => {
     try { tracker.setPolling(taskId, s); } catch { /* ignore */ }
   };
@@ -347,6 +338,7 @@ async function runJobForTask(
 }
 
 export async function POST(request: Request) {
+  const tracker = getAnimationTracker();
   let body: unknown = null;
   try {
     body = (await request.json()) as unknown;

@@ -19,7 +19,7 @@ declare module "@/lib/pet/animation-tracker.js" {
   }
   export const STAGE_PERCENTS: Record<AnimationStage, number>;
   export const STAGE_LABELS: Record<AnimationStage, string>;
-  export function createAnimationTracker(): {
+  export function createAnimationTracker(options?: { filePath?: string }): {
     get(taskId: string): AnimationTaskStatus | null;
     setSubmitted(taskId: string): AnimationTaskStatus;
     setPolling(taskId: string, stage: string): AnimationTaskStatus;

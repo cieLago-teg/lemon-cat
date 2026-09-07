@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import animationProviderModule from "@/lib/pet/animation-provider.js";
-import animationTrackerModule from "@/lib/pet/animation-tracker.js";
+import { getAnimationTracker } from "@/lib/pet/task-store";
 
 const { ANIMATION_PROVIDER_ID, getAnimationProviderAvailability } = animationProviderModule as {
   ANIMATION_PROVIDER_ID: "dashscope_wan";
@@ -9,16 +9,9 @@ const { ANIMATION_PROVIDER_ID, getAnimationProviderAvailability } = animationPro
   };
 };
 
-type GlobalWithTracker = typeof globalThis & {
-  __petAnimationTracker?: ReturnType<typeof animationTrackerModule.createAnimationTracker>;
-};
-const globalAny = globalThis as GlobalWithTracker;
-if (!globalAny.__petAnimationTracker) {
-  globalAny.__petAnimationTracker = animationTrackerModule.createAnimationTracker();
-}
-const tracker = globalAny.__petAnimationTracker;
 
 export async function GET(request: Request) {
+  const tracker = getAnimationTracker();
   const url = new URL(request.url);
   const taskId = url.searchParams.get("taskId");
 
@@ -55,5 +48,5 @@ export async function GET(request: Request) {
     }));
   }
 
-  return NextResponse.json(body);
+  return NextResponse.json(body, { headers: { "Cache-Control": "no-store" } });
 }

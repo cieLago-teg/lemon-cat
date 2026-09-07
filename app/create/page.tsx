@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { pollAnimation } from "@/lib/pet/poll-animation.js";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { compressToBase64 } from "@/lib/image";
@@ -104,6 +105,8 @@ const EMPTY_PROFILE: ProfileFields = {
 export default function HomePage() {
   const router = useRouter();
   const [stage, setStage] = useState<Stage>("UPLOAD");
+  const animationRef = useRef<AbortController | null>(null);
+  useEffect(() => () => animationRef.current?.abort(), []);
   const [selectedName, setSelectedName] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
   const [lastFile, setLastFile] = useState<File | null>(null);
@@ -323,14 +326,19 @@ export default function HomePage() {
   handleDeployRef.current = handleDeploy;
 
   const handleAnimate = async () => {
+    if (animationRef.current) return;
     if (selectedResultIdx === null) return;
     const target = results[selectedResultIdx];
     if (!target) return;
+    const targetIndex = selectedResultIdx;
+    const operation = new AbortController();
+    animationRef.current = operation;
     setAnimState({ stage: "提交中...", videoUrl: null, taskId: null, percent: 0, message: "正在提交任务" });
     setError("");
     try {
       const res = await fetch("/api/pet/animate", {
         method: "POST",
+        signal: operation.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           imageUrl: target.imageUrl,
@@ -342,39 +350,23 @@ export default function HomePage() {
       const taskId: string = data.taskId;
       setAnimState((prev) => ({ ...prev, stage: "排队中", taskId, percent: 10, message: "已提交到 Wan 队列" }));
 
-      const pollInterval = setInterval(async () => {
-        try {
-          const s = await fetch(`/api/pet/animation-status?taskId=${taskId}`);
-          const sd = await s.json();
-          const task = sd?.task;
-          if (task?.stage === "Success" && task?.videoUrl) {
-            setAnimState({
-              stage: "done",
-              videoUrl: task.videoUrl,
-              taskId,
-              percent: 100,
-              message: task.message || "生成完成"
-            });
-            clearInterval(pollInterval);
-          } else if (task?.stage === "Failure") {
-            setAnimState({ stage: "idle", videoUrl: null, taskId: null, percent: 0, message: "生成失败" });
-            setError(task.message || task.error || "动画生成失败");
-            clearInterval(pollInterval);
-          } else {
-            setAnimState((prev) => ({
-              ...prev,
-              stage: task?.stage ?? prev.stage,
-              percent: typeof task?.percent === "number" ? task.percent : prev.percent,
-              message: task?.message || prev.message
-            }));
-          }
-        } catch {
-          // keep polling
-        }
-      }, 2500);
+      const videoUrl = await pollAnimation(taskId, {
+        signal: operation.signal,
+        onProgress: (task) => setAnimState((prev) => ({
+          ...prev,
+          stage: task.stage,
+          percent: task.percent ?? prev.percent,
+          message: task.message || prev.message
+        }))
+      });
+      setAnimState({ stage: "done", videoUrl, taskId, percent: 100, message: "生成完成" });
+      setResults((previous) => previous.map((item, index) => index === targetIndex && item.imageUrl === target.imageUrl ? { ...item, videoUrl } : item));
     } catch (e) {
+      if (operation.signal.aborted) return;
       setAnimState({ stage: "idle", videoUrl: null, taskId: null, percent: 0, message: "" });
       setError(e instanceof Error ? e.message : "动画提交失败");
+    } finally {
+      if (animationRef.current === operation) animationRef.current = null;
     }
   };
 

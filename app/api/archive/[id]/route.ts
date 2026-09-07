@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
 import {
   deleteArchiveById,
   getAllArchives,
+  getArchiveById,
+  writeArchives,
   isCompanionMode as _isCompanionMode,
   PetArchive,
   sanitizeCompanionConfig,
@@ -11,14 +11,23 @@ import {
   sanitizeMultiPetStrategy
 } from "@/lib/db/archive";
 
-const DB_FILE = path.join(process.cwd(), "data", "archives.json");
-
 function isSafeArchiveId(id: string) {
   return /^[0-9a-z]+$/i.test(id);
 }
 
-function writeArchives(arr: unknown[]) {
-  fs.writeFileSync(DB_FILE, JSON.stringify(arr, null, 2), "utf-8");
+export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  if (!isSafeArchiveId(id)) {
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+  }
+  try {
+    const archive = getArchiveById(id);
+    return archive
+      ? NextResponse.json({ archive }, { headers: { "Cache-Control": "no-store" } })
+      : NextResponse.json({ error: "Not found" }, { status: 404 });
+  } catch {
+    return NextResponse.json({ error: "档案暂时无法读取，原始数据已保留。" }, { status: 500 });
+  }
 }
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {

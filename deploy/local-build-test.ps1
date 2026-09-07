@@ -1,0 +1,6 @@
+$env:DASHSCOPE_API_KEY = "dummy_key_for_build"
+$env:NEXT_TELEMETRY_DISABLED = "1"
+$env:NODE_OPTIONS = "--max-old-space-size=4096"
+npm run build *>&1 | Tee-Object -FilePath "d:\TRAE\柠檬树苗\build-output-3.log"
+Write-Host "---"
+Write-Host "Exit: $LASTEXITCODE"

@@ -3,6 +3,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { NextResponse } from "next/server";
+import { resolveLocalAssetUrl } from "@/lib/pet/local-url.js";
 
 function hashContent(buf: Buffer) {
   return crypto.createHash("sha256").update(buf).digest("hex");
@@ -104,10 +105,7 @@ export async function POST(request: Request) {
   // 本地 dev 环境：把相对路径拼成 http://127.0.0.1:PORT 走内网 fetch。
   // 严禁用 new URL(rawVideoUrl, request.url)，因为本地 request.url 也是
   // http://localhost:PORT，但万一外部代理注入 https 头就会触发 SSL 错误。
-  const port = process.env.PORT || "8080";
-  const videoUrl = rawVideoUrl.startsWith("/")
-    ? `http://127.0.0.1:${port}${rawVideoUrl}`
-    : rawVideoUrl;
+  const videoUrl = resolveLocalAssetUrl(rawVideoUrl, request.url);
 
   const videoResponse = await fetch(videoUrl);
   if (!videoResponse.ok) {
@@ -135,6 +133,7 @@ export async function POST(request: Request) {
   const existingHash = hashFile(videoPath);
 
   if (existingHash === newHash) {
+    fs.writeFileSync(path.join(shellDir, "config.json"), JSON.stringify({ mode: "video", src: fileName }, null, 2));
     const launched = tryLaunchPetShell();
     return NextResponse.json({ ok: true, shellLaunched: launched.ok, fileName, reused: true });
   }
