@@ -68,6 +68,20 @@ export default function AppNav() {
               </Link>
             );
           })}
+          {user?.isAdmin ? (
+            <Link
+              href="/developer"
+              aria-current={pathname === "/developer" ? "page" : undefined}
+              className={
+                "rounded-full px-4 py-1.5 font-handwriting font-bold text-base transition-colors duration-200 " +
+                (pathname === "/developer"
+                  ? "bg-white/34 text-amber-950 shadow-[0_2px_10px_rgba(255,255,255,0.18)_inset]"
+                  : "text-amber-700/85 hover:bg-white/16 hover:text-amber-900")
+              }
+            >
+              开发者后台
+            </Link>
+          ) : null}
 
           {logoutError && <span role="alert" className="text-xs text-red-800">{logoutError}</span>}
           {!loading ? (

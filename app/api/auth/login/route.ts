@@ -9,7 +9,7 @@ export const POST = route("POST", async (request) => {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const { user, cookie } = await authenticate(body, false);
   return NextResponse.json(
-    { user: { id: user.id, email: user.email, credits: user.credits } },
+    { user: { id: user.id, email: user.email, credits: user.credits, isAdmin: user.isAdmin } },
     { headers: { "set-cookie": cookie } }
   );
 });
