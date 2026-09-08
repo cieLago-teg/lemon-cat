@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import {
   deleteArchiveById,
   getAllArchives,
-  getArchiveById,
   writeArchives,
   isCompanionMode as _isCompanionMode,
   PetArchive,
@@ -10,31 +9,29 @@ import {
   sanitizeCompanionStats,
   sanitizeMultiPetStrategy
 } from "@/lib/db/archive";
+import { route } from "@/lib/server/http.cjs";
+import { requireOwnedArchive } from "@/lib/server/guard";
 
 function isSafeArchiveId(id: string) {
   return /^[0-9a-z]+$/i.test(id);
 }
 
-export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export const GET = route("GET", async (request, context: { params: Promise<{ id: string }> }) => {
+  const { id } = await context.params;
   if (!isSafeArchiveId(id)) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
-  try {
-    const archive = getArchiveById(id);
-    return archive
-      ? NextResponse.json({ archive }, { headers: { "Cache-Control": "no-store" } })
-      : NextResponse.json({ error: "Not found" }, { status: 404 });
-  } catch {
-    return NextResponse.json({ error: "档案暂时无法读取，原始数据已保留。" }, { status: 500 });
-  }
-}
+  // 2026-09-08 1A 用户隔离：非本人档案一律 404，不泄露存在性。
+  const { archive } = await requireOwnedArchive(request, id);
+  return NextResponse.json({ archive }, { headers: { "Cache-Control": "no-store" } });
+});
 
-export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export const DELETE = route("DELETE", async (request, context: { params: Promise<{ id: string }> }) => {
+  const { id } = await context.params;
   if (!isSafeArchiveId(id)) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
+  await requireOwnedArchive(request, id);
 
   const result = deleteArchiveById(id);
   if (!result.ok) {
@@ -42,7 +39,7 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   }
 
   return NextResponse.json({ ok: true, removed: result.removed });
-}
+});
 
 // 2026-06-09 Step 3 + Step 4 + Step 5 + Step 6：档案状态/档案编辑/形态操作/桌面陪伴 统一 PATCH 入口。
 //
@@ -59,11 +56,12 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
 //   - 多宠物策略：multiPetStrategy: "single" | "random" | "rotate"（Step 6.6）
 //
 // 一个 PATCH 路由统一处理，避免路由爆炸；老 PATCH 调用方保持完全兼容。
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export const PATCH = route("PATCH", async (request, context: { params: Promise<{ id: string }> }) => {
+  const { id } = await context.params;
   if (!isSafeArchiveId(id)) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
+  await requireOwnedArchive(request, id);
 
   let body: Record<string, unknown> = {};
   try {
@@ -219,4 +217,4 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   writeArchives(archives);
 
   return NextResponse.json({ archive: archives[idx] });
-}
+});

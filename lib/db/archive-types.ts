@@ -13,6 +13,9 @@ export type ArchiveImageInput = {
 export interface PetArchive {
   id: string;
   createdAt: number;
+  // 2026-09-08 1A 用户隔离：档案归属的用户 ID（auth.cjs 的 users.id）。
+  // 老数据没有该字段，由 scripts/migrate-legacy.cjs 统一归到内置 legacy 账号。
+  ownerId?: string;
   petName: string;
   petVibe: string;
   aiTags: string[];

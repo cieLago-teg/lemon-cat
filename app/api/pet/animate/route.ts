@@ -63,6 +63,8 @@ import { mattingVideo } from "@/lib/pet/rvm-matting.js";
 import { buildIdlePrompt as buildIdlePromptWithStyle } from "@/lib/pet/animation-prompt.js";
 import { getAnimationTracker } from "@/lib/pet/task-store";
 import { parseLocalResultImagePath, getResultImageFilePath } from "@/lib/db/archive";
+import { route } from "@/lib/server/http.cjs";
+import { requireUser } from "@/lib/server/guard";
 
 // In-process tracker shared by /api/pet/animate (writer) and
 // /api/pet/animation-status (reader). In dev mode Next.js may reload the
@@ -337,7 +339,9 @@ async function runJobForTask(
   }
 }
 
-export async function POST(request: Request) {
+export const POST = route("POST", async (request) => {
+  // 2026-09-08 1A 用户隔离：付费 i2v 视频生成必须登录。
+  await requireUser(request);
   const tracker = getAnimationTracker();
   let body: unknown = null;
   try {
@@ -471,4 +475,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
+});

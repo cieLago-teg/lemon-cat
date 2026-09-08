@@ -8,6 +8,8 @@ import {
   TAIL_VISIBLE_CONSTRAINT,
   WHITE_BG_PANEL_CONSTRAINT
 } from "@/lib/prompts";
+import { route } from "@/lib/server/http.cjs";
+import { requireUser } from "@/lib/server/guard";
 
 type GenerateRequest = {
   petName: string;
@@ -23,7 +25,9 @@ type GenerateRequest = {
 
 const imageModel = process.env.BAILIAN_IMAGE_MODEL ?? "wan2.6-t2i";
 
-export async function POST(request: Request) {
+export const POST = route("POST", async (request) => {
+  // 2026-09-08 1A 用户隔离：付费生图调用必须登录。
+  await requireUser(request);
   try {
     console.log(`[GenerateRoute] imageModel=${imageModel}`);
     const body = (await request.json()) as GenerateRequest;
@@ -62,4 +66,4 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : "服务异常";
     return NextResponse.json({ error: `${message} (image=${imageModel})` }, { status: 500 });
   }
-}
+});

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PetArchive } from "@/lib/db/archive";
 import { useDeployPet } from "@/app/components/useDeployPet";
 import { DeployProgressBar } from "@/app/components/DeployProgressBar";
+import { apiFetch } from "@/app/components/useSession";
 
 // 2026-06-09 商业化减法 + 绘本风：5 个状态 + 1 个"全部"
 type ArchiveStatus = "all" | "ready" | "needs_fix" | "error" | "deployed" | "fav";
@@ -53,7 +54,7 @@ export default function ArchivePage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch("/api/archive", { signal: controller.signal })
+    apiFetch("/api/archive", { signal: controller.signal })
       .then((res) => res.json())
       .then((data) => {
         if (data.archives) {
@@ -125,7 +126,7 @@ export default function ArchivePage() {
     });
     setArchives((prev) => prev.map((x) => (x.id === a.id ? { ...x, hasFav: !wasFav } : x)));
     try {
-      const res = await fetch(`/api/archive/${a.id}`, {
+      const res = await apiFetch(`/api/archive/${a.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ hasFav: !wasFav })
@@ -424,13 +425,13 @@ function PetCard({
       });
       if (deployResult.ok) {
         const now = Date.now();
-        await fetch(`/api/archive/${archive.id}`, {
+        await apiFetch(`/api/archive/${archive.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ deployedAt: now, lastSummonedAt: now, currentMorphIndex: archive.currentMorphIndex ?? 0 })
         });
         if (deployResult.videoUrl && !firstResult.videoUrl) {
-          await fetch(`/api/archive/${archive.id}`, {
+          await apiFetch(`/api/archive/${archive.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

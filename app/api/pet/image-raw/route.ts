@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
-import { parseLocalResultImagePath, getResultImageFilePath } from "@/lib/db/archive";
+import { parseLocalResultImagePath, getResultImageFilePath, getArchiveById } from "@/lib/db/archive";
+import { route } from "@/lib/server/http.cjs";
+import { requireUser } from "@/lib/server/guard";
 
 function isSafeId(id: string) {
   return /^[0-9a-zA-Z._-]+$/.test(id);
@@ -31,7 +33,9 @@ function isAllowedRemoteUrl(raw: string) {
   }
 }
 
-export async function GET(request: Request) {
+export const GET = route("GET", async (request) => {
+  // 2026-09-08 1A 用户隔离：图片代理必须登录。
+  const user = await requireUser(request);
   const { searchParams } = new URL(request.url);
   const raw = String(searchParams.get("url") || "");
   if (!raw) {
@@ -40,6 +44,20 @@ export async function GET(request: Request) {
 
   // 1) Resolve local://image/<archiveId>-<index>.<ext>
   if (raw.startsWith("local://image/")) {
+    // 2026-09-08 1A 用户隔离：本地档案图校验归属，非本人档案 404。
+    // archive id 是纯字母数字（无连字符），base 中最后一个 "-" 是 index 分隔符。
+    const probeFull = raw.slice("local://image/".length);
+    const probeDot = probeFull.lastIndexOf(".");
+    const probeBase = probeDot > 0 ? probeFull.slice(0, probeDot) : probeFull;
+    const probeDash = probeBase.lastIndexOf("-");
+    const probeId =
+      probeDash > 0 && /^\d+$/.test(probeBase.slice(probeDash + 1))
+        ? probeBase.slice(0, probeDash)
+        : probeBase;
+    const owned = getArchiveById(probeId);
+    if (!owned || owned.ownerId !== user.id) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const localPath = raw.slice("local://image/".length);
     const dotIndex = localPath.lastIndexOf(".");
     if (dotIndex < 1) {
@@ -117,6 +135,11 @@ export async function GET(request: Request) {
 
   // 2) Direct /api/archive/image/<id>/<idx>.<ext>
   if (raw.startsWith("/api/archive/image/")) {
+    // 2026-09-08 1A 用户隔离：本地档案图校验归属，非本人档案 404。
+    const owned = getArchiveById(raw.slice("/api/archive/image/".length).split("/")[0] || "");
+    if (!owned || owned.ownerId !== user.id) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const tail = raw.slice("/api/archive/image/".length);
     const parts = tail.split("/");
     if (parts.length !== 2) {
@@ -175,7 +198,7 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({ error: "Blocked url" }, { status: 400 });
-}
+});
 
 // local helper
 function getResultImageDir(archiveId: string) {

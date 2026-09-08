@@ -2,6 +2,8 @@ import fs from "fs";
 import path from "path";
 import { spawn, spawnSync } from "node:child_process";
 import { NextResponse } from "next/server";
+import { route } from "@/lib/server/http.cjs";
+import { requireUser } from "@/lib/server/guard";
 
 function isPngBuffer(buf: Buffer) {
   if (buf.length < 8) return false;
@@ -56,7 +58,9 @@ function tryLaunchPetShell() {
   return { ok: false as const };
 }
 
-export async function POST(request: Request) {
+export const POST = route("POST", async (request) => {
+  // 2026-09-08 1A 用户隔离：投放桌宠必须登录。
+  await requireUser(request);
   let body: unknown = null;
   try {
     body = (await request.json()) as unknown;
@@ -120,4 +124,4 @@ export async function POST(request: Request) {
 
   const launched = tryLaunchPetShell();
   return NextResponse.json({ ok: true, shellLaunched: launched.ok });
-}
+});

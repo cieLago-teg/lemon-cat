@@ -4,6 +4,8 @@ import crypto from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { NextResponse } from "next/server";
 import { resolveLocalAssetUrl } from "@/lib/pet/local-url.js";
+import { route } from "@/lib/server/http.cjs";
+import { requireUser } from "@/lib/server/guard";
 
 function hashContent(buf: Buffer) {
   return crypto.createHash("sha256").update(buf).digest("hex");
@@ -62,7 +64,9 @@ function tryLaunchPetShell() {
   return { ok: false as const, reason: "electron_not_installed" as const };
 }
 
-export async function POST(request: Request) {
+export const POST = route("POST", async (request) => {
+  // 2026-09-08 1A 用户隔离：投放桌宠必须登录。
+  await requireUser(request);
   let body: unknown = null;
   try {
     body = (await request.json()) as unknown;
@@ -154,4 +158,4 @@ export async function POST(request: Request) {
 
   const launched = tryLaunchPetShell();
   return NextResponse.json({ ok: true, shellLaunched: launched.ok, fileName });
-}
+});

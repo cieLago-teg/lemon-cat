@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { compressToBase64 } from "@/lib/image";
 import { useDeployPet } from "@/app/components/useDeployPet";
 import { DeployProgressBar } from "@/app/components/DeployProgressBar";
+import { apiFetch } from "@/app/components/useSession";
 
 // 2026-06-09 商业化重构：消费级文案（去除"克隆 / MVP / GIF"等开发语言）
 type CloneResult = {
@@ -191,7 +192,7 @@ export default function HomePage() {
       setStage("ANALYZE_FEATURES");
       stageStartedAtRef.current = Date.now();
 
-      const response = await fetch("/api/extract", {
+      const response = await apiFetch("/api/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -238,7 +239,7 @@ export default function HomePage() {
   const startGeneration = async () => {
     setResults([]);
     try {
-      const response = await fetch("/api/generate", {
+      const response = await apiFetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -336,7 +337,7 @@ export default function HomePage() {
     setAnimState({ stage: "提交中...", videoUrl: null, taskId: null, percent: 0, message: "正在提交任务" });
     setError("");
     try {
-      const res = await fetch("/api/pet/animate", {
+      const res = await apiFetch("/api/pet/animate", {
         method: "POST",
         signal: operation.signal,
         headers: { "Content-Type": "application/json" },
@@ -351,6 +352,7 @@ export default function HomePage() {
       setAnimState((prev) => ({ ...prev, stage: "排队中", taskId, percent: 10, message: "已提交到 Wan 队列" }));
 
       const videoUrl = await pollAnimation(taskId, {
+        fetch: apiFetch,
         signal: operation.signal,
         onProgress: (task) => setAnimState((prev) => ({
           ...prev,
@@ -381,7 +383,7 @@ export default function HomePage() {
     }
     setSaveHint("保存中...");
     try {
-      const res = await fetch("/api/archive", {
+      const res = await apiFetch("/api/archive", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

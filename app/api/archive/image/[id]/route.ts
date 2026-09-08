@@ -1,26 +1,33 @@
 import fs from "fs";
-import { getArchiveById, getSourceImageFilePath } from "@/lib/db/archive";
+import { getSourceImageFilePath } from "@/lib/db/archive";
+import { route } from "@/lib/server/http.cjs";
+import { requireOwnedArchive } from "@/lib/server/guard";
 
-export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  if (!/^[0-9a-z]+$/i.test(id)) {
-    return new Response("Invalid id", { status: 400 });
-  }
-  const archive = getArchiveById(id);
-  if (!archive?.sourceImage) {
-    return new Response("Not found", { status: 404 });
-  }
-  const filePath = getSourceImageFilePath(id, archive.sourceImage.ext);
-  if (!fs.existsSync(filePath)) {
-    return new Response("Not found", { status: 404 });
-  }
-  const buf = fs.readFileSync(filePath);
-  return new Response(buf, {
-    status: 200,
-    headers: {
-      "Content-Type": archive.sourceImage.mimeType,
-      "Cache-Control": "public, max-age=31536000, immutable"
+export const runtime = "nodejs";
+
+export const GET = route(
+  "GET",
+  async (request, context: { params: Promise<{ id: string }> }) => {
+    const { id } = await context.params;
+    if (!/^[0-9a-z]+$/i.test(id)) {
+      return new Response("Invalid id", { status: 400 });
     }
-  });
-}
-
+    // 2026-09-08 1A 用户隔离：源图只给档案主人。
+    const { archive } = await requireOwnedArchive(request, id);
+    if (!archive.sourceImage) {
+      return new Response("Not found", { status: 404 });
+    }
+    const filePath = getSourceImageFilePath(id, archive.sourceImage.ext);
+    if (!fs.existsSync(filePath)) {
+      return new Response("Not found", { status: 404 });
+    }
+    const buf = fs.readFileSync(filePath);
+    return new Response(buf, {
+      status: 200,
+      headers: {
+        "Content-Type": archive.sourceImage.mimeType,
+        "Cache-Control": "public, max-age=31536000, immutable"
+      }
+    });
+  }
+);

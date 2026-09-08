@@ -4,6 +4,8 @@ import { spawn, spawnSync } from "node:child_process";
 import { NextResponse } from "next/server";
 import { getArchiveById, getResultImageFilePath, parseLocalResultImagePath } from "@/lib/db/archive";
 import { matteImageBuffer } from "@/lib/pet/rvm-matting.js";
+import { route } from "@/lib/server/http.cjs";
+import { requireUser } from "@/lib/server/guard";
 
 const IMAGE_DIR = path.join(process.cwd(), "data", "archive-images");
 
@@ -111,7 +113,9 @@ function tryLaunchPetShell() {
   return { ok: false as const, reason: "electron_not_installed" as const };
 }
 
-export async function POST(request: Request) {
+export const POST = route("POST", async (request) => {
+  // 2026-09-08 1A 用户隔离：投放桌宠必须登录。
+  const user = await requireUser(request);
   let body: unknown = null;
   try {
     body = (await request.json()) as unknown;
@@ -147,6 +151,11 @@ export async function POST(request: Request) {
     let buf: Buffer | null = null;
     const local = parseLocalResultImagePath(imageUrlDirect);
     if (local) {
+      // 2026-09-08 1A 用户隔离：本地档案图校验归属，非本人档案 404。
+      const owned = getArchiveById(local.archiveId);
+      if (!owned || owned.ownerId !== user.id) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
       const filePath = getResultImageFilePath(local.archiveId, local.index, local.ext);
       if (fs.existsSync(filePath)) {
         try {
@@ -201,7 +210,8 @@ export async function POST(request: Request) {
   }
 
   const archive = getArchiveById(archiveId);
-  if (!archive) {
+  // 2026-09-08 1A 用户隔离：非本人档案一律 404，不泄露存在性。
+  if (!archive || archive.ownerId !== user.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -293,4 +303,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
+});

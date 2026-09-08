@@ -1,7 +1,9 @@
 import fs from "fs";
 import { NextResponse } from "next/server";
 import { matteImageBuffer } from "@/lib/pet/rvm-matting.js";
-import { parseLocalResultImagePath, getResultImageFilePath } from "@/lib/db/archive";
+import { parseLocalResultImagePath, getResultImageFilePath, getArchiveById } from "@/lib/db/archive";
+import { route } from "@/lib/server/http.cjs";
+import { requireUser } from "@/lib/server/guard";
 
 function isAllowedRemoteUrl(raw: string) {
   try {
@@ -15,7 +17,9 @@ function isAllowedRemoteUrl(raw: string) {
   }
 }
 
-export async function POST(request: Request) {
+export const POST = route("POST", async (request) => {
+  // 2026-09-08 1A 用户隔离：抠像必须登录。
+  const user = await requireUser(request);
   let body: unknown = null;
   try {
     body = (await request.json()) as unknown;
@@ -34,9 +38,13 @@ export async function POST(request: Request) {
 
   let inputBuffer: Buffer | null = null;
 
-  // 1. 尝试本地路径
+  // 1. 尝试本地路径（校验归属）
   const local = parseLocalResultImagePath(imageUrl);
   if (local) {
+    const owned = getArchiveById(local.archiveId);
+    if (!owned || owned.ownerId !== user.id) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const filePath = getResultImageFilePath(local.archiveId, local.index, local.ext);
     if (fs.existsSync(filePath)) {
       try {
@@ -94,4 +102,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
+});

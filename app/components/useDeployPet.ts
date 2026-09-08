@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { pollAnimation } from "@/lib/pet/poll-animation.js";
+import { apiFetch } from "@/app/components/useSession";
 
 /**
  * 统一的"召唤到桌面"hook：永远只走视频。
@@ -103,7 +104,7 @@ export function useDeployPet() {
       if (!videoUrl) {
         // 1. 提交动画任务
         setStage("animating", 8, "正在为它注入生命…");
-        const submitRes = await fetch("/api/pet/animate", {
+        const submitRes = await apiFetch("/api/pet/animate", {
           method: "POST",
           signal: operation.signal,
           headers: { "Content-Type": "application/json" },
@@ -121,6 +122,7 @@ export function useDeployPet() {
 
         // 2. 轮询等结果
         videoUrl = await pollAnimation(taskId, {
+          fetch: apiFetch,
           signal: operation.signal,
           onProgress: (task) => setProgress((previous) => {
             const percent = Math.max(previous.percent, Math.min(95, task.percent ?? previous.percent));
@@ -131,7 +133,7 @@ export function useDeployPet() {
 
       // 3. 投放视频
       setStage("deploying", 99, "正在把它送到桌面…");
-      const deployRes = await fetch("/api/pet/set-video", {
+      const deployRes = await apiFetch("/api/pet/set-video", {
         method: "POST",
         signal: operation.signal,
         headers: { "Content-Type": "application/json" },

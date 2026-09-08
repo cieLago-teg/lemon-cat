@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { extractPetFeatures } from "@/lib/bailian";
 import { resolveFeatureSystemPrompt } from "@/lib/prompts";
+import { route } from "@/lib/server/http.cjs";
+import { requireUser } from "@/lib/server/guard";
 
 type ExtractRequest = {
   imageBase64?: string;
@@ -10,7 +12,9 @@ type ExtractRequest = {
 
 const featureModel = process.env.BAILIAN_VL_MODEL ?? "qwen3-vl-plus";
 
-export async function POST(request: Request) {
+export const POST = route("POST", async (request) => {
+  // 2026-09-08 1A 用户隔离：付费 VL 调用必须登录。
+  await requireUser(request);
   try {
     console.log(`[ExtractRoute] featureModel=${featureModel}`);
     const body = (await request.json()) as ExtractRequest;
@@ -36,4 +40,4 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : "服务异常";
     return NextResponse.json({ error: `${message} (feature=${featureModel})` }, { status: 500 });
   }
-}
+});

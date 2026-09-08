@@ -68,6 +68,7 @@ function normalizeArchive(raw: unknown): PetArchive {
   return {
     id: typeof obj.id === "string" ? obj.id : Date.now().toString(),
     createdAt: typeof obj.createdAt === "number" ? obj.createdAt : Date.now(),
+    ownerId: typeof obj.ownerId === "string" && obj.ownerId.length > 0 ? obj.ownerId : undefined,
     petName: typeof obj.petName === "string" ? obj.petName : "未命名宠物",
     petVibe: typeof obj.petVibe === "string" ? obj.petVibe : "",
     aiTags: Array.isArray(obj.aiTags) ? obj.aiTags.filter((t) => typeof t === "string") : [],

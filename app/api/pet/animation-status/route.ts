@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import animationProviderModule from "@/lib/pet/animation-provider.js";
 import { getAnimationTracker } from "@/lib/pet/task-store";
+import { route } from "@/lib/server/http.cjs";
+import { requireUser } from "@/lib/server/guard";
 
 const { ANIMATION_PROVIDER_ID, getAnimationProviderAvailability } = animationProviderModule as {
   ANIMATION_PROVIDER_ID: "dashscope_wan";
@@ -9,8 +11,9 @@ const { ANIMATION_PROVIDER_ID, getAnimationProviderAvailability } = animationPro
   };
 };
 
-
-export async function GET(request: Request) {
+export const GET = route("GET", async (request) => {
+  // 2026-09-08 1A 用户隔离：任务状态只对登录用户开放。
+  await requireUser(request);
   const tracker = getAnimationTracker();
   const url = new URL(request.url);
   const taskId = url.searchParams.get("taskId");
@@ -49,4 +52,4 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json(body, { headers: { "Cache-Control": "no-store" } });
-}
+});

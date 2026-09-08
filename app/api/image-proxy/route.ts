@@ -1,6 +1,8 @@
 import fs from "fs";
 import { NextResponse } from "next/server";
-import { parseLocalResultImagePath, getResultImageFilePath } from "@/lib/db/archive";
+import { parseLocalResultImagePath, getResultImageFilePath, getArchiveById } from "@/lib/db/archive";
+import { route } from "@/lib/server/http.cjs";
+import { requireUser } from "@/lib/server/guard";
 
 function isAllowedRemoteUrl(raw: string) {
   try {
@@ -14,16 +16,22 @@ function isAllowedRemoteUrl(raw: string) {
   }
 }
 
-export async function GET(request: Request) {
+export const GET = route("GET", async (request) => {
+  // 2026-09-08 1A 用户隔离：代理必须登录。
+  const user = await requireUser(request);
   const url = new URL(request.url);
   const raw = url.searchParams.get("url")?.trim();
   if (!raw) {
     return NextResponse.json({ error: "Missing url parameter" }, { status: 400 });
   }
 
-  // 尝试读取本地 archive 图片
+  // 尝试读取本地 archive 图片（校验归属）
   const local = parseLocalResultImagePath(raw);
   if (local) {
+    const archive = getArchiveById(local.archiveId);
+    if (!archive || archive.ownerId !== user.id) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const filePath = getResultImageFilePath(local.archiveId, local.index, local.ext);
     if (fs.existsSync(filePath)) {
       try {
@@ -69,5 +77,5 @@ export async function GET(request: Request) {
   } finally {
     clearTimeout(timeout);
   }
-}
+});
 
