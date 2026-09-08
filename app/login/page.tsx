@@ -3,6 +3,17 @@
 import { useState } from "react";
 import { safeReturnPath } from "@/lib/client/navigation.cjs";
 
+type PasswordStrength = { label: "低" | "中" | "高"; score: 1 | 2 | 3; hint: string };
+
+function passwordStrength(value: string): PasswordStrength | null {
+  if (!value) return null;
+  const types = [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].filter((rule) => rule.test(value)).length;
+  if (value.length < 8) return { label: "低", score: 1, hint: "至少 8 位后才能注册" };
+  if (value.length >= 12 && types >= 3) return { label: "高", score: 3, hint: "长度和组合都很好" };
+  if (types >= 2) return { label: "中", score: 2, hint: "再加长一些或混合更多字符会更稳妥" };
+  return { label: "低", score: 1, hint: "建议混合字母、数字或符号" };
+}
+
 // 2026-09-08 1A 用户隔离：登录/注册页。
 // 登录成功后整页跳转（window.location），让 AppNav 重新拉取会话。
 export default function LoginPage() {
@@ -30,8 +41,8 @@ export default function LoginPage() {
       setError("请输入有效邮箱");
       return;
     }
-    if (password.length < 12 || password.length > 128) {
-      setError("密码需要 12—128 位");
+    if (password.length < 8 || password.length > 128) {
+      setError("密码需要 8—128 位");
       return;
     }
 
@@ -54,6 +65,7 @@ export default function LoginPage() {
   };
 
   const isLogin = mode === "login";
+  const strength = isLogin ? null : passwordStrength(password);
 
   return (
     <main className="relative flex min-h-screen items-center justify-center bg-canvas-watercolor px-4 py-16">
@@ -87,18 +99,28 @@ export default function LoginPage() {
 
             <label className="block">
               <span className="mb-1.5 block text-xs font-bold text-[#5c2e10]/80">
-                密码 <span className="font-normal text-[#5c2e10]/50">（12 位以上）</span>
+                密码 <span className="font-normal text-[#5c2e10]/50">（至少 8 位）</span>
               </span>
               <input
                 type="password"
                 autoComplete={isLogin ? "current-password" : "new-password"}
                 required
-                minLength={12}
+                minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="至少 12 位"
+                placeholder="至少 8 位"
                 className="w-full rounded-2xl border border-[#5c2e10]/20 bg-white/70 px-4 py-3 text-sm text-[#5c2e10] outline-none transition placeholder:text-[#5c2e10]/35 focus:border-[#f8a8a8] focus:bg-white/90 focus:ring-2 focus:ring-[#f8a8a8]/40"
               />
+              {strength && (
+                <div aria-live="polite" className="mt-2 flex items-center gap-2 text-xs text-[#5c2e10]/65">
+                  <span className="flex gap-1" aria-hidden>
+                    {[1, 2, 3].map((segment) => (
+                      <span key={segment} className={`h-1.5 w-7 rounded-full ${segment <= strength.score ? strength.score === 3 ? "bg-emerald-500" : strength.score === 2 ? "bg-amber-500" : "bg-rose-400" : "bg-[#5c2e10]/10"}`} />
+                    ))}
+                  </span>
+                  <span>密码强度：{strength.label} · {strength.hint}</span>
+                </div>
+              )}
             </label>
 
             {!isLogin && (

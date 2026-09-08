@@ -15,9 +15,10 @@ function status(response, expected) { assert.equal(response.status,expected); ch
 async function main() {
   assert.ok(['localhost','127.0.0.1'].includes(new URL(base).hostname), 'HTTP verification runs only against local services');
   status(await api('GET','/api/archive'),401);
+  status(await api('POST','/api/auth/register',null,{email:`too-short-${crypto.randomUUID()}@lemoncat.local`,password:'aB3!xyz',inviteCode:process.env.REGISTRATION_CODE}),400);
   const accounts = [];
   for (let i=0;i<2;i++) {
-    const response = await api('POST','/api/auth/register',null,{email:`verify-${crypto.randomUUID()}@lemoncat.local`,password:crypto.randomBytes(24).toString('hex'),inviteCode:process.env.REGISTRATION_CODE});
+    const response = await api('POST','/api/auth/register',null,{email:`verify-${crypto.randomUUID()}@lemoncat.local`,password:i === 0 ? 'Cat@2026' : crypto.randomBytes(24).toString('hex'),inviteCode:process.env.REGISTRATION_CODE});
     status(response,200);
     accounts.push({ cookie: response.headers.get('set-cookie').split(';')[0], user: (await response.json()).user });
   }
