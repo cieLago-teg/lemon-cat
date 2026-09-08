@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "@/app/components/useSession";
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 type NavItem = {
   href: string;
@@ -34,6 +34,11 @@ export default function AppNav() {
   const pathname = usePathname() || "/";
   const { user, loading } = useSession();
   const [logoutError,setLogoutError] = useState('');
+  const [showLocalDeveloper, setShowLocalDeveloper] = useState(false);
+
+  useEffect(() => {
+    setShowLocalDeveloper(['localhost', '127.0.0.1'].includes(window.location.hostname));
+  }, []);
 
   const logout = async () => {
     try {
@@ -68,7 +73,7 @@ export default function AppNav() {
               </Link>
             );
           })}
-          {user?.isAdmin ? (
+          {showLocalDeveloper ? (
             <Link
               href="/developer"
               aria-current={pathname === "/developer" ? "page" : undefined}
@@ -79,7 +84,7 @@ export default function AppNav() {
                   : "text-amber-700/85 hover:bg-white/16 hover:text-amber-900")
               }
             >
-              开发者后台
+              开发后台
             </Link>
           ) : null}
 

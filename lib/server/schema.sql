@@ -2,9 +2,6 @@ CREATE TABLE IF NOT EXISTS users (
   id uuid PRIMARY KEY, email text NOT NULL UNIQUE, password_hash text NOT NULL,
   credits integer NOT NULL DEFAULT 0 CHECK (credits >= 0), created_at timestamptz NOT NULL DEFAULT now()
 );
--- 首次本机初始化的维护者账号。默认所有现有/新注册用户都不是管理员。
-ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin boolean NOT NULL DEFAULT false;
-CREATE INDEX IF NOT EXISTS users_admin ON users(is_admin) WHERE is_admin;
 CREATE TABLE IF NOT EXISTS sessions (
   token_hash text PRIMARY KEY, user_id uuid NOT NULL REFERENCES users(id), expires_at timestamptz NOT NULL
 );

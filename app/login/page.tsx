@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { safeReturnPath } from "@/lib/client/navigation.cjs";
 
 type PasswordStrength = { label: "低" | "中" | "高"; score: 1 | 2 | 3; hint: string };
@@ -24,11 +23,6 @@ export default function LoginPage() {
   const [inviteCode, setInviteCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [showDeveloperSetup, setShowDeveloperSetup] = useState(false);
-
-  useEffect(() => {
-    setShowDeveloperSetup(["localhost", "127.0.0.1"].includes(window.location.hostname));
-  }, []);
 
   const safeNext = () => {
     if (typeof window === "undefined") return "/create";
@@ -166,11 +160,6 @@ export default function LoginPage() {
               {isLogin ? "去注册" : "去登录"}
             </button>
           </p>
-          {isLogin && showDeveloperSetup ? (
-            <p className="mt-3 text-center text-xs text-[#5c2e10]/60">
-              首次在本机启动？ <Link href="/developer/setup" className="font-bold text-[#5c2e10] underline underline-offset-2">初始化开发者账号</Link>
-            </p>
-          ) : null}
         </div>
       </div>
     </main>

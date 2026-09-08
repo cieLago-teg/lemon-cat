@@ -11,16 +11,10 @@ import { HttpError } from "./errors.cjs";
 // requireUser：未登录 → 401；requireOwnedArchive：不是本人档案 → 404（不泄露存在性）。
 // 用法：在 route() 包装的 handler 里 await，抛出的 HttpError 会被 route() 映射成 JSON 响应。
 
-export type Viewer = { id: string; email: string; credits: number; isAdmin: boolean };
+export type Viewer = { id: string; email: string; credits: number };
 
 export async function requireUser(request: Request): Promise<Viewer> {
   return viewer(request) as Promise<Viewer>;
-}
-
-export async function requireAdmin(request: Request): Promise<Viewer> {
-  const user = await requireUser(request);
-  if (!user.isAdmin) throw new HttpError(403, "需要开发者权限");
-  return user;
 }
 
 // 本地地址必须先检查档案归属；云端只允许已知供应商 HTTPS 媒体地址。

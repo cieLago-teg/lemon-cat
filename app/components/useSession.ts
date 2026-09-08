@@ -7,7 +7,6 @@ export type SessionUser = {
   id: string;
   email: string;
   credits: number;
-  isAdmin: boolean;
 };
 
 export function useSession() {
