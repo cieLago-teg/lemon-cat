@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS pets (
   id text PRIMARY KEY, user_id uuid NOT NULL REFERENCES users(id), data jsonb NOT NULL,
   version integer NOT NULL DEFAULT 1, created_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS backend text NOT NULL DEFAULT 'local';
+CREATE INDEX IF NOT EXISTS assets_owner_hash ON assets(user_id,sha256);
 CREATE INDEX IF NOT EXISTS pets_owner ON pets(user_id);
 CREATE TABLE IF NOT EXISTS generation_jobs (
   id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES users(id), kind text NOT NULL CHECK (kind IN ('extract','generate','animate')),

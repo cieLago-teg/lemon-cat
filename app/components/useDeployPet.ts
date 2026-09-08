@@ -139,9 +139,17 @@ export function useDeployPet() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ videoUrl })
       });
-      const deployData = await deployRes.json().catch(() => ({}));
+      const deployData = await deployRes.json();
       if (!deployRes.ok) {
         throw new Error(deployData?.error || `投放失败 (${deployRes.status})`);
+      }
+      videoUrl = deployData.playbackUrl || videoUrl;
+      const desktop = (window as Window & { lemonCatApp?: { deployVideo: (url: string) => Promise<{ ok: boolean; error?: string }> } }).lemonCatApp;
+      if (desktop?.deployVideo) {
+        const deployed = await desktop.deployVideo(deployData.playbackUrl || videoUrl);
+        if (!deployed.ok) throw new Error(deployed.error || '本机桌宠窗口启动失败');
+        deployData.shellLaunched = true;
+        deployData.playbackUrl = null;
       }
       setUsedCachedVideo(usedCachedVideo);
       // 2026-07-15 Step 6.2：Railway 部署环境下 set-video 返回 playbackUrl，

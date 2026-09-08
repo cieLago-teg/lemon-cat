@@ -37,3 +37,4 @@ public/archive-images/
 
 desktop-pet-shell/node_modules/
 desktop-pet-shell/.user-data/
+/.worker/

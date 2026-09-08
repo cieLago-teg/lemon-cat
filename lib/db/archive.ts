@@ -2,6 +2,8 @@ import fs from "fs";
 import path from "path";
 import { Agent, fetch as undiciFetch } from "undici";
 import { readJson, writeJsonAtomic } from "./json-store.cjs";
+import { insertPet } from "../server/pets.cjs";
+import { putAsset } from '../server/assets.cjs';
 
 // 2026-06-09 Step 5：所有 PetArchive / CompanionConfig 等类型 + 默认值 +
 // sanitizeCompanionConfig 都在 archive-types.ts 里。archive.ts 这里是 server-only
@@ -420,7 +422,9 @@ export function deleteArchiveById(id: string) {
 // 推荐所有调用方使用这个，而不是同步版（同步版仅作为"不下载 result 图"回退）。
 // ---------------------------------------------------------------------------
 export async function saveArchiveAsync(archive: SaveArchiveInput): Promise<PetArchive> {
-  getAllArchives();
+  const databaseBacked = Boolean(archive.ownerId);
+  if (databaseBacked) ensureDbExists();
+  else getAllArchives();
   const { sourceImage, ...rest } = archive;
   const newArchive: PetArchive = {
     ...rest,
@@ -435,9 +439,15 @@ export async function saveArchiveAsync(archive: SaveArchiveInput): Promise<PetAr
 
   if (sourceImage?.base64 && sourceImage?.mimeType) {
     const ext = mimeToExt(sourceImage.mimeType);
-    const filePath = getSourceImageFilePath(newArchive.id, ext);
-    fs.writeFileSync(filePath, decodeBase64(sourceImage.base64));
-    newArchive.sourceImage = { mimeType: sourceImage.mimeType, ext };
+    const bytes = decodeBase64(sourceImage.base64);
+    if (bytes.length > MAX_RESULT_IMAGE_BYTES) throw new Error('Source image too large');
+    if (archive.ownerId) {
+      const assetUrl = await putAsset(archive.ownerId, bytes, sourceImage.mimeType);
+      newArchive.sourceImage = { mimeType: sourceImage.mimeType, ext, assetUrl };
+    } else {
+      fs.writeFileSync(getSourceImageFilePath(newArchive.id, ext), bytes);
+      newArchive.sourceImage = { mimeType: sourceImage.mimeType, ext };
+    }
   }
 
   if (Array.isArray(newArchive.results)) {
@@ -461,8 +471,12 @@ export async function saveArchiveAsync(archive: SaveArchiveInput): Promise<PetAr
   }
 
   // Re-read after downloads so concurrent requests cannot overwrite a newer archive.
-  const archives = getAllArchives();
-  archives.unshift(newArchive);
-  writeArchives(archives);
+  if (databaseBacked) {
+    await insertPet(newArchive);
+  } else {
+    const archives = getAllArchives();
+    archives.unshift(newArchive);
+    writeArchives(archives);
+  }
   return newArchive;
 }

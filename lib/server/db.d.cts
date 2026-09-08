@@ -1,5 +1,5 @@
 export interface QueryResult {
-  rows: any[];
+  rows: Record<string, unknown>[];
   rowCount: number | null;
 }
 export interface DbClient {

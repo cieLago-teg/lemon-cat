@@ -69,7 +69,7 @@ export interface PetArchive {
     // 2026-07-15：原始召唤风格标签（"简约可爱水墨风" 等），老数据可能缺失。
     sourceStyle?: string;
   } | null;
-  sourceImage?: { mimeType: string; ext: string };
+  sourceImage?: { mimeType: string; ext: string; assetUrl?: string };
 }
 
 // ===== Step 5：6 种陪伴模式 + 默认值 =====

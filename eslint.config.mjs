@@ -7,7 +7,11 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  { ignores: ['.worker/**', '.next/**', '**/node_modules/**', 'app-shell/dist/**'] },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
+  { files: ['**/*.cjs'], rules: { '@typescript-eslint/no-require-imports': 'off' } },
+  { files: ['app-shell/*.js'], rules: { '@typescript-eslint/no-require-imports': 'off' } },
+  { files: ['scripts/worker.ts'], rules: { '@typescript-eslint/no-require-imports': 'off' } },
   {
     ignores: ["lib/pet/**/*.js", "lib/pet/**/*.cjs", "spike/**", "deploy/**"]
   },

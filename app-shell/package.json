@@ -13,8 +13,8 @@
     "build:app:mac": "electron-builder --mac --publish never"
   },
   "devDependencies": {
-    "electron": "^32.2.0",
-    "electron-builder": "^25.1.8"
+    "electron": "32.3.3",
+    "electron-builder": "25.1.8"
   },
   "build": {
     "appId": "com.cielago.lemoncat",
@@ -27,6 +27,11 @@
     "files": [
       "main.js",
       "preload.js",
+      "desktop.cjs",
+      "desktop-policy.cjs",
+      "pet-preload.js",
+      "pet-renderer.js",
+      "pet.html",
       "package.json"
     ],
     "win": {
@@ -64,5 +69,8 @@
       "hardenedRuntime": false,
       "gatekeeperAssess": false
     }
+  },
+  "dependencies": {
+    "pino": "10.3.1"
   }
 }

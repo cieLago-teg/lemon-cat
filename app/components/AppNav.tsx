@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "@/app/components/useSession";
+import { useState } from 'react';
 
 type NavItem = {
   href: string;
@@ -20,7 +21,8 @@ const items: NavItem[] = [
     href: "/pets",
     label: "我的宠物",
     match: (p) => p === "/pets"
-  }
+  },
+  { href: '/tasks', label: '生成任务', match: (p) => p === '/tasks' }
 ];
 
 function nameOf(email: string) {
@@ -31,21 +33,23 @@ function nameOf(email: string) {
 export default function AppNav() {
   const pathname = usePathname() || "/";
   const { user, loading } = useSession();
+  const [logoutError,setLogoutError] = useState('');
 
   const logout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      const response = await fetch("/api/auth/logout", { method: "POST", headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      if (!response.ok) throw new Error(`退出失败 (${response.status})`);
+      window.location.href = "/login";
     } catch (err) {
       console.error("logout failed", err);
+      setLogoutError(err instanceof Error ? err.message : '退出失败，请重试');
     }
-    // 整页跳转让本组件重新拉取会话。
-    window.location.href = "/login";
   };
 
   return (
     <header className="sticky top-3 z-30 px-4">
       <div className="mx-auto w-fit max-w-[min(92vw,34rem)] rounded-[999px] border border-white/45 bg-white/28 px-5 py-3 shadow-[0_18px_45px_-24px_rgba(92,46,16,0.45),0_6px_18px_rgba(255,255,255,0.22)_inset] ring-1 ring-black/5 backdrop-blur-xl supports-[backdrop-filter]:bg-white/22 sm:px-6 sm:py-3.5">
-        <nav className="flex items-center justify-center gap-1.5">
+        <nav className="flex flex-wrap items-center justify-center gap-1.5">
           {items.map((item) => {
             const active = item.match(pathname);
             return (
@@ -65,6 +69,7 @@ export default function AppNav() {
             );
           })}
 
+          {logoutError && <span role="alert" className="text-xs text-red-800">{logoutError}</span>}
           {!loading ? (
             <>
               <span className="mx-1 h-4 w-px shrink-0 bg-[#5c2e10]/15" aria-hidden />

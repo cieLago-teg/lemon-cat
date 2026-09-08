@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
 import {
-  deleteArchiveById,
-  getAllArchives,
-  writeArchives,
   isCompanionMode as _isCompanionMode,
   PetArchive,
   sanitizeCompanionConfig,
@@ -10,7 +7,8 @@ import {
   sanitizeMultiPetStrategy
 } from "@/lib/db/archive";
 import { route } from "@/lib/server/http.cjs";
-import { requireOwnedArchive } from "@/lib/server/guard";
+import { requireOwnedArchive, requireOwnedVideo } from "@/lib/server/guard";
+import { deletePet, updatePet } from "@/lib/server/pets.cjs";
 
 function isSafeArchiveId(id: string) {
   return /^[0-9a-z]+$/i.test(id);
@@ -31,14 +29,9 @@ export const DELETE = route("DELETE", async (request, context: { params: Promise
   if (!isSafeArchiveId(id)) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
-  await requireOwnedArchive(request, id);
-
-  const result = deleteArchiveById(id);
-  if (!result.ok) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  return NextResponse.json({ ok: true, removed: result.removed });
+  const { user } = await requireOwnedArchive(request, id);
+  const removed = await deletePet(user.id, id);
+  return NextResponse.json({ ok: true, removed });
 });
 
 // 2026-06-09 Step 3 + Step 4 + Step 5 + Step 6：档案状态/档案编辑/形态操作/桌面陪伴 统一 PATCH 入口。
@@ -61,7 +54,7 @@ export const PATCH = route("PATCH", async (request, context: { params: Promise<{
   if (!isSafeArchiveId(id)) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
-  await requireOwnedArchive(request, id);
+  const { user, archive: target, version } = await requireOwnedArchive(request, id);
 
   let body: Record<string, unknown> = {};
   try {
@@ -70,13 +63,6 @@ export const PATCH = route("PATCH", async (request, context: { params: Promise<{
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const archives = getAllArchives();
-  const idx = archives.findIndex((a) => a.id === id);
-  if (idx < 0) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  const target = archives[idx];
   const updates: Partial<PetArchive> = {};
 
   // 状态字段
@@ -200,6 +186,7 @@ export const PATCH = route("PATCH", async (request, context: { params: Promise<{
           if (typeof op.videoUrl !== "string" || op.videoUrl.length === 0) {
             return NextResponse.json({ error: "缺少 videoUrl，无法写回动态视频" }, { status: 400 });
           }
+          await requireOwnedVideo(request, op.videoUrl);
           nextResults[morphIdx].videoUrl = op.videoUrl;
         }
         updates.results = nextResults;
@@ -213,8 +200,7 @@ export const PATCH = route("PATCH", async (request, context: { params: Promise<{
     return NextResponse.json({ error: "No updatable fields supplied" }, { status: 400 });
   }
 
-  archives[idx] = { ...target, ...updates };
-  writeArchives(archives);
-
-  return NextResponse.json({ archive: archives[idx] });
+  const archive = { ...target, ...updates };
+  await updatePet(user.id, id, version, archive);
+  return NextResponse.json({ archive });
 });

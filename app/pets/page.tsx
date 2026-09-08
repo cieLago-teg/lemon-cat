@@ -430,7 +430,7 @@ function PetCard({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ deployedAt: now, lastSummonedAt: now, currentMorphIndex: archive.currentMorphIndex ?? 0 })
         });
-        if (deployResult.videoUrl && !firstResult.videoUrl) {
+        if (deployResult.videoUrl && deployResult.videoUrl !== firstResult.videoUrl) {
           await apiFetch(`/api/archive/${archive.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },

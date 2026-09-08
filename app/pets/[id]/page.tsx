@@ -88,7 +88,7 @@ export default function PetDetailPage() {
         style: currentMorph.style
       });
       if (deployResult.ok) {
-        if (deployResult.videoUrl && !currentMorph.videoUrl) {
+        if (deployResult.videoUrl && deployResult.videoUrl !== currentMorph.videoUrl) {
           const persistVideo = await fetch(`/api/archive/${archive.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },

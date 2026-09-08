@@ -126,7 +126,7 @@ function InnerCreateSuccessPage() {
   const [summoning, setSummoning] = useState(false);
   const [hint, setHint] = useState("");
   // 2026-06-12: 召唤到桌面只走视频，没有 videoUrl 就触发动画生成，全程显示真实进度。
-  const { progress: deployProgress, error: deployError, hint: deployHint, deploy, usedCachedVideo, playbackUrl } = useDeployPet();
+  const { progress: deployProgress, error: deployError, deploy, usedCachedVideo, playbackUrl } = useDeployPet();
 
   useEffect(() => {
     if (!id) {
@@ -192,13 +192,15 @@ function InnerCreateSuccessPage() {
         const patch = await fetch(`/api/archive/${archive.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ deployedAt: now, lastSummonedAt: now, currentMorphIndex: archive.currentMorphIndex ?? 0 })
+          body: JSON.stringify({ deployedAt: now, lastSummonedAt: now, currentMorphIndex: archive.currentMorphIndex ?? 0,
+            ...(deployResult.videoUrl && deployResult.videoUrl !== currentMorph.videoUrl ? { morph: { style: currentMorph.style, action: 'setVideo', videoUrl: deployResult.videoUrl } } : {}) })
         });
+        if (!patch.ok) throw new Error(`视频已就绪，但档案更新失败 (${patch.status})，请刷新档案确认`);
         if (patch.ok) {
           const pd = await patch.json();
           if (pd?.archive) setArchive(pd.archive);
         }
-        setHint(deployHint || "已写入形态（如未弹出窗口，请运行 npm run dev:pet-shell）");
+        setHint('视频已就绪；网页可预览，桌面客户端可召唤透明窗口');
       } else if (deployError) {
         setHint(`❌ ${deployError}`);
       }

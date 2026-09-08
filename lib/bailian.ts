@@ -1,7 +1,9 @@
 import { ensureAuth } from "./auth";
 import { Agent, fetch as undiciFetch } from "undici";
+import { createRequire } from 'node:module';
+import type { ServiceLogger } from './server/logger.cjs';
+const logger = createRequire(process.cwd() + '/package.json')('./lib/server/logger.cjs').logger as ServiceLogger;
 
-const { baseUrl, apiKey } = ensureAuth('dashscope');
 
 // 2026-06-04 修复：手机热点 / DoH DNS 下首次解析 dashscope.aliyuncs.com
 // 可能要 22 秒，undici 默认 connectTimeout 只有 10s，会在握手阶段抛
@@ -34,6 +36,7 @@ export { getDashscopeAgent };
 type DomResponse = Response;
 
 async function bailianFetch<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const { baseUrl, apiKey } = ensureAuth('dashscope');
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s 总超时
 
@@ -52,7 +55,7 @@ async function bailianFetch<T>(path: string, body: Record<string, unknown>): Pro
       dispatcher: getDashscopeAgent()
     })) as unknown as DomResponse;
   } catch (err) {
-    throw new Error(`fetch failed: ${err instanceof Error ? err.message : String(err)}`);
+    throw new Error('百炼请求传输失败，提交结果需核对', { cause: err });
   } finally {
     clearTimeout(timeoutId);
   }
@@ -60,17 +63,14 @@ async function bailianFetch<T>(path: string, body: Record<string, unknown>): Pro
   let data: Record<string, unknown> = {};
   const text = await response.text();
 
-  console.log(`[Bailian API] Path: ${path} | Status: ${response.status}`);
-  if (!response.ok) {
-    console.log(`[Bailian API Error] Response: ${text.slice(0, 500)}`);
-  }
+  logger.info({ path, status: response.status }, 'provider response');
 
   try {
     if (text) {
       data = JSON.parse(text) as Record<string, unknown>;
     }
-  } catch {
-    throw new Error(`百炼接口返回非JSON格式: ${response.status} ${text.slice(0, 100)}`);
+  } catch (err) {
+    throw new Error(`百炼接口返回非JSON格式: ${response.status}`, { cause: err });
   }
 
   if (!response.ok) {
@@ -82,6 +82,7 @@ async function bailianFetch<T>(path: string, body: Record<string, unknown>): Pro
 }
 
 function getDashscopeRoot() {
+  const { baseUrl } = ensureAuth('dashscope');
   if (baseUrl.includes("/compatible-mode/")) {
     return baseUrl.split("/compatible-mode/")[0];
   }
@@ -110,7 +111,7 @@ function isNetworkOrRateLimitError(message: string) {
   );
 }
 
-async function withRetry<T>(runner: () => Promise<T>, attempts = 3) {
+async function withRetry<T>(runner: () => Promise<T>, attempts = 1) {
   let lastError: unknown;
   for (let i = 0; i < attempts; i += 1) {
     try {
@@ -127,119 +128,6 @@ async function withRetry<T>(runner: () => Promise<T>, attempts = 3) {
   throw lastError instanceof Error ? lastError : new Error("请求失败");
 }
 
-type DashscopeTaskCreateResponse = {
-  output?: {
-    task_id?: string;
-    results?: Array<{ url?: string }>;
-    result_url?: string;
-  };
-  message?: string;
-  code?: string;
-};
-
-type DashscopeTaskQueryResponse = {
-  output?: {
-    task_status?: string;
-    results?: Array<{ url?: string }>;
-    result_url?: string;
-    choices?: Array<{
-      message?: {
-        content?: Array<{ image?: string; type?: string }>;
-      };
-    }>;
-    message?: string;
-  };
-  message?: string;
-  code?: string;
-};
-
-async function createImageTask(prompt: string, model: string) {
-  let servicePath = "/api/v1/services/aigc/text2image/image-synthesis";
-  let inputPayload: unknown = { prompt };
-  let size = "1024*1024";
-
-  if (model.startsWith("wan2.6")) {
-    servicePath = "/api/v1/services/aigc/image-generation/generation";
-    inputPayload = {
-      messages: [
-        {
-          role: "user",
-          content: [{ text: prompt }]
-        }
-      ]
-    };
-    size = "1280*1280"; // wan2.6 的约束
-  } else if (model.startsWith("qwen-image") || model.startsWith("qwen_image")) {
-    servicePath = "/api/v1/services/aigc/multimodal-generation/generation";
-    inputPayload = {
-      messages: [
-        {
-          role: "user",
-          content: [{ text: prompt }]
-        }
-      ]
-    };
-  }
-
-  const url = `${getDashscopeRoot()}${servicePath}`;
-  // 2026-06-04：异步任务接口也走同一个 60s dispatcher，
-    // 避免创建任务请求被 DNS 冷启动干死。
-    const response = (await undiciFetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "X-DashScope-Async": "enable"
-      },
-      dispatcher: getDashscopeAgent(),
-      body: JSON.stringify({
-      model,
-      input: inputPayload,
-      parameters: {
-        size,
-        n: 1
-      }
-    })
-  })) as unknown as DomResponse;
-  const text = await response.text();
-  let data: DashscopeTaskCreateResponse = {};
-  try {
-    if (text) {
-      data = JSON.parse(text) as DashscopeTaskCreateResponse;
-    }
-  } catch {
-    throw new Error(`百炼文生图任务创建返回非JSON: ${response.status}`);
-  }
-  if (!response.ok) {
-    throw new Error(data.message ?? data.code ?? `百炼文生图任务创建失败 (${response.status})`);
-  }
-  return data;
-}
-
-  async function queryImageTask(taskId: string) {
-    const url = `${getDashscopeRoot()}/api/v1/tasks/${taskId}`;
-    // 2026-06-04：任务查询也走同一个 dispatcher，保持 connectTimeout 行为一致。
-    const response = (await undiciFetch(url, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${apiKey}`
-      },
-      dispatcher: getDashscopeAgent()
-    })) as unknown as DomResponse;
-  const text = await response.text();
-  let data: DashscopeTaskQueryResponse = {};
-  try {
-    if (text) {
-      data = JSON.parse(text) as DashscopeTaskQueryResponse;
-    }
-  } catch {
-    throw new Error(`百炼文生图任务查询返回非JSON: ${response.status}`);
-  }
-  if (!response.ok) {
-    throw new Error(data.message ?? data.code ?? `百炼文生图任务查询失败 (${response.status})`);
-  }
-  return data;
-}
 
 type ChatCompletionResponse = {
   choices?: Array<{
@@ -342,14 +230,15 @@ export async function generateStyledImage(prompt: string, model: string) {
       return `data:image/png;base64,${image.b64_json}`;
     }
   } catch (error) {
-    console.log(`[Bailian] /images/generations failed:`, error);
-    // 忽略错误，降级到 Task API
+    logger.error({ err: error, model }, 'image generation failed; no fallback submission');
+    throw error;
   }
 
-  return runAsyncImageTask(prompt, model);
+  throw new Error('图片生成结果为空，提交结果需核对');
 }
 
   async function runSyncMultimodalImageGeneration(prompt: string, model: string, size = "1024*1024") {
+    const { apiKey } = ensureAuth('dashscope');
     const url = `${getDashscopeRoot()}/api/v1/services/aigc/multimodal-generation/generation`;
     // wan2.6 专属参数：关闭扩写与水印，保证结果图贴合 prompt 且无水印。
     // qwen-image 不识别这些字段，故仅在 wan 前缀下附加，避免误伤。
@@ -369,6 +258,7 @@ export async function generateStyledImage(prompt: string, model: string) {
           "Content-Type": "application/json"
         },
         dispatcher: getDashscopeAgent(),
+        signal: AbortSignal.timeout(120000),
         body: JSON.stringify({
         model,
         input: {
@@ -393,7 +283,7 @@ export async function generateStyledImage(prompt: string, model: string) {
       const messageText = typeof message === "string" ? message : String(cause);
       return ` | cause=${codeText}${codeText ? ":" : ""}${messageText}`;
     })();
-    throw new Error(`fetch failed: ${err instanceof Error ? err.message : String(err)}${causeHint}`);
+    throw new Error(`百炼请求传输失败，提交结果需核对${causeHint}`, { cause: err });
   }
   const text = await response.text();
   let data: DashscopeMultimodalGenerationResponse = {};
@@ -412,36 +302,4 @@ export async function generateStyledImage(prompt: string, model: string) {
     throw new Error("多模态生图结果为空");
   }
   return imageUrl;
-}
-
-async function runAsyncImageTask(prompt: string, model: string) {
-  const task = await withRetry(() => createImageTask(prompt, model));
-  const directUrl = task.output?.results?.[0]?.url ?? task.output?.result_url;
-  if (directUrl) {
-    return directUrl;
-  }
-  const taskId = task.output?.task_id;
-  if (!taskId) {
-    throw new Error("未获取到文生图任务ID");
-  }
-
-  for (let i = 0; i < 20; i += 1) {
-    await delay(2000);
-    const status = await withRetry(() => queryImageTask(taskId), 2);
-    const taskStatus = status.output?.task_status;
-    if (taskStatus === "SUCCEEDED") {
-      const imageUrl =
-        status.output?.results?.[0]?.url ??
-        status.output?.result_url ??
-        status.output?.choices?.[0]?.message?.content?.[0]?.image;
-      if (imageUrl) {
-        return imageUrl;
-      }
-      throw new Error("任务成功但未返回图片URL");
-    }
-    if (taskStatus === "FAILED" || taskStatus === "CANCELED") {
-      throw new Error(status.output?.message ?? status.message ?? "文生图任务执行失败");
-    }
-  }
-  throw new Error("文生图任务超时，请重试");
 }

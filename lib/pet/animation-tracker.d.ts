@@ -10,6 +10,7 @@ declare module "@/lib/pet/animation-tracker.js" {
     | "Failure";
   export interface AnimationTaskStatus {
     taskId: string;
+    ownerId?: string;
     stage: AnimationStage;
     percent: number;
     message: string;
@@ -21,11 +22,12 @@ declare module "@/lib/pet/animation-tracker.js" {
   export const STAGE_LABELS: Record<AnimationStage, string>;
   export function createAnimationTracker(options?: { filePath?: string }): {
     get(taskId: string): AnimationTaskStatus | null;
-    setSubmitted(taskId: string): AnimationTaskStatus;
+    setSubmitted(taskId: string, ownerId?: string): AnimationTaskStatus;
     setPolling(taskId: string, stage: string): AnimationTaskStatus;
     tickWithoutStatus(taskId: string, elapsedMs: number): AnimationTaskStatus;
     setSucceeded(taskId: string, payload: { videoUrl?: string }): AnimationTaskStatus;
     setFailed(taskId: string, error: string): AnimationTaskStatus;
     listActive(): AnimationTaskStatus[];
+    listAll(): AnimationTaskStatus[];
   };
 }

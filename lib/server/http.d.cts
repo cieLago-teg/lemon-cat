@@ -4,13 +4,13 @@ export interface RouteExtra {
   requestId: string;
   log: ServiceLogger;
 }
-export type RouteHandler = (
+export type RouteHandler<Context> = (
   request: Request,
-  context: any,
+  context: Context,
   extra: RouteExtra
 ) => Promise<Response> | Response;
-export function route(
+export function route<Context = { params: Promise<Record<string, string>> }>(
   method: string,
-  handler: RouteHandler
-): (request: Request, context?: any) => Promise<Response>;
+  handler: RouteHandler<Context>
+): (request: Request, context: Context) => Promise<Response>;
 export function clientIp(request: Request): string;

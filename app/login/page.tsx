@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { apiFetch } from "@/app/components/useSession";
+import { safeReturnPath } from "@/lib/client/navigation.cjs";
 
 // 2026-09-08 1A 用户隔离：登录/注册页。
 // 登录成功后整页跳转（window.location），让 AppNav 重新拉取会话。
@@ -9,6 +9,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -16,7 +17,7 @@ export default function LoginPage() {
     if (typeof window === "undefined") return "/create";
     const next = new URLSearchParams(window.location.search).get("next") || "/create";
     // 只接受站内路径，防 open redirect。
-    return next.startsWith("/") && !next.startsWith("//") ? next : "/create";
+    return safeReturnPath(next);
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -36,10 +37,10 @@ export default function LoginPage() {
 
     setSubmitting(true);
     try {
-      const res = await apiFetch(`/api/auth/${mode}`, {
+      const res = await fetch(`/api/auth/${mode}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail, password })
+        body: JSON.stringify({ email: trimmedEmail, password, ...(mode === "register" ? { inviteCode: inviteCode.trim() } : {}) })
       });
       const data = (await res.json().catch(() => ({}))) as { user?: unknown; error?: string };
       if (!res.ok || !data.user) {
@@ -99,6 +100,15 @@ export default function LoginPage() {
                 className="w-full rounded-2xl border border-[#5c2e10]/20 bg-white/70 px-4 py-3 text-sm text-[#5c2e10] outline-none transition placeholder:text-[#5c2e10]/35 focus:border-[#f8a8a8] focus:bg-white/90 focus:ring-2 focus:ring-[#f8a8a8]/40"
               />
             </label>
+
+            {!isLogin && (
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-bold text-[#5c2e10]/80">内测邀请码</span>
+                <input type="password" autoComplete="off" required value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value)} placeholder="请输入维护者提供的邀请码"
+                  className="w-full rounded-2xl border border-[#5c2e10]/20 bg-white/70 px-4 py-3 text-sm text-[#5c2e10] outline-none focus:border-[#f8a8a8]" />
+              </label>
+            )}
 
             {error ? (
               <p role="alert" className="rounded-xl bg-[#f8a8a8]/25 px-4 py-2.5 text-xs text-[#a33434]">
