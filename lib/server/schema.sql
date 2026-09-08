@@ -32,3 +32,12 @@ CREATE TABLE IF NOT EXISTS usage_ledger (
 );
 CREATE TABLE IF NOT EXISTS worker_heartbeats (id uuid PRIMARY KEY, updated_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS rate_limits (key text PRIMARY KEY, count integer NOT NULL DEFAULT 0, expires_at timestamptz NOT NULL);
+CREATE TABLE IF NOT EXISTS identity_checks (
+  job_id uuid NOT NULL REFERENCES generation_jobs(id),
+  user_id uuid NOT NULL REFERENCES users(id),
+  image_url text NOT NULL, source_url text NOT NULL,
+  model text NOT NULL, policy text NOT NULL,
+  passed boolean NOT NULL, verdict jsonb NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(job_id,image_url)
+);
+CREATE INDEX IF NOT EXISTS identity_image ON identity_checks(user_id,image_url);

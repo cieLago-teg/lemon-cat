@@ -47,7 +47,7 @@ function installDesktop(getMain, appUrl, logger) {
       const directory = path.join(app.getPath('userData'), 'pets');
       await fs.mkdir(directory, { recursive: true });
       await fs.writeFile(path.join(directory, `${hash}.webm`), bytes);
-      await fs.writeFile(path.join(directory, 'last.json'), JSON.stringify({ hash }));
+      await fs.writeFile(path.join(directory, 'last.json'), JSON.stringify({ hash, identityPolicy: 'pet-identity-v1' }));
       await showPet(bytes);
       logger.info({ bytes: bytes.length, hash }, 'desktop pet opened');
       return { ok: true };
@@ -60,7 +60,11 @@ function installDesktop(getMain, appUrl, logger) {
 async function restoreDesktop(logger) {
   const directory = path.join(app.getPath('userData'), 'pets');
   try {
-    const { hash } = JSON.parse(await fs.readFile(path.join(directory, 'last.json'), 'utf8'));
+    const { hash, identityPolicy } = JSON.parse(await fs.readFile(path.join(directory, 'last.json'), 'utf8'));
+    if (identityPolicy !== 'pet-identity-v1') {
+      logger.warn({}, 'cached pet requires identity verification before restore');
+      return;
+    }
     if (!/^[a-f0-9]{64}$/.test(hash)) throw new Error('Invalid cached pet manifest');
     const bytes = await fs.readFile(path.join(directory, `${hash}.webm`));
     if (crypto.createHash('sha256').update(bytes).digest('hex') !== hash) throw new Error('Cached pet checksum mismatch');

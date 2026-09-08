@@ -24,6 +24,12 @@ app.whenReady().then(async()=>{
     await restoreDesktop(logger);
   }
   const pet = BrowserWindow.getAllWindows().find((window)=>window !== main);
+  if (mode === 'legacy-cache') {
+    assert.equal(pet, undefined, 'unverified legacy cache must not open a pet window');
+    logger.info({mode}, 'unverified cached desktop pet blocked');
+    app.exit(0);
+    return;
+  }
   assert.ok(pet,'actual transparent pet window must exist');
   const playback = await pet.webContents.executeJavaScript(`new Promise((resolve,reject)=>{
     const video=document.querySelector('video');

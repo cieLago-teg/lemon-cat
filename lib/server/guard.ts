@@ -6,6 +6,7 @@ import { ownedAsset } from './assets.cjs';
 import type { PetArchive } from "@/lib/db/archive-types";
 import { viewer } from "./auth.cjs";
 import { HttpError } from "./errors.cjs";
+import { requireVerifiedVideo } from './identity.cjs';
 
 // 2026-09-08 1A 用户隔离：所有 /api/* 路由的统一入口检查。
 // requireUser：未登录 → 401；requireOwnedArchive：不是本人档案 → 404（不泄露存在性）。
@@ -48,10 +49,13 @@ export async function requireOwnedVideo(request: Request, url: string) {
   if (url.startsWith('/api/assets/')) {
     const asset = await ownedAsset(user.id, url.slice('/api/assets/'.length));
     if (!asset.content_type.startsWith('video/')) throw new HttpError(400, '需要视频素材');
+    await requireVerifiedVideo(user.id, url);
     return;
   }
   if (!/^\/pet-videos\/[a-zA-Z0-9_.-]+\.(mp4|webm)$/.test(url) && !isProviderMediaUrl(url)) throw new HttpError(400, "不支持的视频地址");
-  if (await ownsVideo(user.id, url)) return;
-  if (getAnimationTracker().listAll().some((task) => task.ownerId === user.id && task.videoUrl === url && task.stage === 'Success')) return;
+  if (await ownsVideo(user.id, url) || getAnimationTracker().listAll().some((task) => task.ownerId === user.id && task.videoUrl === url && task.stage === 'Success')) {
+    await requireVerifiedVideo(user.id, url);
+    return;
+  }
   throw new HttpError(404, "Not found");
 }

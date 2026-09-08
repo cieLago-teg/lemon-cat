@@ -1,7 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import crypto from 'node:crypto';
-import { extractPetFeatures, generateStyledImage, getDashscopeAgent } from '../lib/bailian';
+import { extractPetFeatures, generatePetImage, verifyPetIdentity, getDashscopeAgent } from '../lib/bailian';
 import { resolveFeatureSystemPrompt, resolveStylePrompts, injectPetFeatures, NON_ANTHRO_CONSTRAINT, TAIL_VISIBLE_CONSTRAINT, WHITE_BG_PANEL_CONSTRAINT, CHROMA_KEY_BG_CONSTRAINT } from '../lib/prompts';
 import { fetch as upstreamFetch } from 'undici';
 
@@ -11,7 +11,8 @@ const { database, close } = require(path.join(root, 'lib/server/db.cjs'));
 const { runOne } = require(path.join(root, 'lib/server/jobs.cjs'));
 const { logger } = require(path.join(root, 'lib/server/logger.cjs'));
 const { config } = require(path.join(root, 'lib/server/config.cjs'));
-const { putAsset, providerAssetUrl } = require(path.join(root, 'lib/server/assets.cjs'));
+const { putAsset, providerAssetUrl, ownedAsset, readAsset } = require(path.join(root, 'lib/server/assets.cjs'));
+const { requireVerifiedImage } = require(path.join(root, 'lib/server/identity.cjs'));
 const { downloadMedia, isProviderMediaUrl } = require(path.join(root, 'lib/server/media-policy.cjs'));
 const { resolveDashscopeVideoBaseUrl } = require(path.join(root, 'lib/pet/dashscope-video-config.js'));
 const { buildIdlePrompt } = require(path.join(root, 'lib/pet/animation-prompt.js'));
@@ -20,6 +21,13 @@ type ResultImage = { style: string; imageUrl: string; prompt: string };
 type JobInput = { sourceImageUrl?: string; imageUrl: string; imageBase64: string; mimeType: string; featureSystemPrompt?: string; petVibe?: string; aiTags?: string[]; customFeatures?: string; stylePrompts?: Parameters<typeof resolveStylePrompts>[0]; bgMode?: string; prompt?: string; style?: string };
 type Job = { id: string; user_id: string; kind: string; input: JobInput; result: { results: ResultImage[]; videoUrl: string }; upstream_id: string };
 type WanPayload = { output?: { task_id?: string; task_status?: string; video_url?: string; results?: { video_url?: string } | Array<{ video_url?: string }> } };
+
+async function imageData(userId: string, url: string) {
+  if (!url?.startsWith('/api/assets/')) throw new Error('需要持久化的原图素材，请重新上传');
+  const asset = await ownedAsset(userId, url.slice('/api/assets/'.length));
+  if (!asset.content_type.startsWith('image/')) throw new Error('Identity source must be an image');
+  return `data:${asset.content_type};base64,${(await readAsset(asset)).toString('base64')}`;
+}
 
 async function wan(endpoint: string, body?: unknown) {
   const response = await upstreamFetch(`${resolveDashscopeVideoBaseUrl(process.env).replace(/\/$/, '')}${endpoint}`, {
@@ -49,7 +57,7 @@ async function reference(job: Job) {
   if (data) return providerAssetUrl(job.user_id, await putAsset(job.user_id, Buffer.from(data[2], 'base64'), data[1]));
   throw Object.assign(new Error('Unsupported reference image'), { safeToRefund: true });
 }
-const adapter = {
+export const adapter = {
   async submit(job: Job) {
     if (!process.env.DASHSCOPE_API_KEY) throw Object.assign(new Error('Provider key not configured'), { safeToRefund: true });
     const body = job.input;
@@ -58,16 +66,21 @@ const adapter = {
       return { result: { petFeatures, tags: petFeatures.split(/[,，、。.\n]/).map((tag) => tag.trim()).filter(Boolean) } };
     }
     if (job.kind === 'generate') {
+      const source = await imageData(job.user_id, body.sourceImageUrl || '');
       const combinedFeatures = [body.petVibe ? `${body.petVibe}的氛围与神态` : '', (body.aiTags || []).join('，'), body.customFeatures ? `补充特征：${body.customFeatures}` : ''].filter(Boolean).join('，');
       const results = [];
       for (const { style, template } of resolveStylePrompts(body.stylePrompts)) {
         const bg = body.bgMode === 'green' ? CHROMA_KEY_BG_CONSTRAINT : body.bgMode === 'none' ? '' : WHITE_BG_PANEL_CONSTRAINT;
         const prompt = `${injectPetFeatures(template, combinedFeatures)}\n${NON_ANTHRO_CONSTRAINT}\n${TAIL_VISIBLE_CONSTRAINT}\n${bg}`;
-        const imageUrl = await generateStyledImage(prompt, process.env.BAILIAN_IMAGE_MODEL || 'wan2.6-t2i');
+        const generated = await generatePetImage(prompt, source, process.env.BAILIAN_PET_IMAGE_MODEL || 'qwen-image-edit-plus-2025-12-15');
+        const { bytes, contentType } = await downloadMedia(generated, 5 * 1024 * 1024);
+        const imageUrl = await putAsset(job.user_id, bytes, contentType);
         results.push({ style, imageUrl, prompt });
       }
       return { result: { results } };
     }
+    await requireVerifiedImage(job.user_id, body.imageUrl);
+    if (body.sourceImageUrl && body.sourceImageUrl !== body.imageUrl) throw new Error('Cannot replace verified reference');
     const imageUrl = await reference(job);
     const payload = await wan('/services/aigc/video-generation/video-synthesis', {
       model: process.env.DASHSCOPE_VIDEO_MODEL || 'wan2.6-i2v-flash',
@@ -89,11 +102,23 @@ const adapter = {
     if (job.kind === 'extract') return job.result;
     if (job.kind === 'generate') {
       const results = [];
+      const rejected = [];
+      const source = await imageData(job.user_id, job.input.sourceImageUrl || '');
+      const model = process.env.BAILIAN_IDENTITY_MODEL || 'qwen3-vl-plus';
       for (const item of job.result.results) {
-        const { bytes, contentType } = await downloadMedia(item.imageUrl, 5 * 1024 * 1024);
-        results.push({ ...item, imageUrl: await putAsset(job.user_id, bytes, contentType) });
+        const previous = await database().query('SELECT verdict FROM identity_checks WHERE job_id=$1 AND image_url=$2', [job.id, item.imageUrl]);
+        let verdict = previous.rows[0]?.verdict;
+        if (!verdict) {
+          try { verdict = await verifyPetIdentity(source, await imageData(job.user_id, item.imageUrl), model); }
+          catch (err) { throw Object.assign(new Error('一致性质检暂时无法完成，结果已拦截；不会自动再次生图', { cause: err }), { identityBlocked: true }); }
+        }
+        await database().query("INSERT INTO identity_checks(job_id,user_id,image_url,source_url,model,policy,passed,verdict) VALUES($1,$2,$3,$4,$5,'pet-identity-v1',$6,$7) ON CONFLICT(job_id,image_url) DO NOTHING", [job.id, job.user_id, item.imageUrl, job.input.sourceImageUrl, model, verdict.passed, verdict]);
+        logger.info({ jobId: job.id, passed: verdict.passed, model }, 'pet identity checked');
+        if (verdict.passed) results.push({ ...item, identity: verdict });
+        else rejected.push({ style: item.style, reason: verdict.reason });
       }
-      return { results };
+      if (!results.length) throw Object.assign(new Error('所有形象均未通过原宠物一致性质检，请调整原图或风格后重新生成'), { identityBlocked: true });
+      return { results, rejected };
     }
     const { bytes, contentType } = await downloadMedia(job.result.videoUrl);
     const directory = path.join(config().dataDir, 'work', job.id);
@@ -131,4 +156,4 @@ async function main() {
   clearInterval(heartbeat);
   await close();
 }
-main().catch((err) => { logger.error({ err }, 'worker stopped unexpectedly'); process.exitCode = 1; });
+if (require.main === module) main().catch((err) => { logger.error({ err }, 'worker stopped unexpectedly'); process.exitCode = 1; });

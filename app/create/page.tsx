@@ -239,10 +239,14 @@ export default function HomePage() {
   const startGeneration = async () => {
     setResults([]);
     try {
+      if (!lastFile) throw new Error('请先上传宠物原图');
+      const original = await compressToBase64(lastFile);
       const response = await apiFetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          imageBase64: original.imageBase64,
+          mimeType: original.mimeType,
           petName,
           petVibe: personality,
           aiTags,
@@ -254,6 +258,7 @@ export default function HomePage() {
       const data = await response.json();
       if (!response.ok || !data) throw new Error(data?.error ?? `生成失败 (${response.status})`);
       setResults(data.results);
+      if (data.rejected?.length) setError(`部分风格未通过一致性质检，已拦截：${data.rejected.map((item: { style: string; reason: string }) => `${item.style}（${item.reason}）`).join('；')}`);
       setStage("PREP_COMPANION");
       stageStartedAtRef.current = Date.now();
       await new Promise((r) => setTimeout(r, 1500));

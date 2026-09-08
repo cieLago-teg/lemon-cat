@@ -19,10 +19,19 @@ async function main() {
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
   await database().query('INSERT INTO users(id,email,password_hash) VALUES($1,$2,$3)',[userId,`desktop-${userId}@lemoncat.local`,'no-password-login']);
   const videoUrl = await putAsset(userId,fs.readFileSync(video),'video/webm');
+  const jobId = crypto.randomUUID();
+  const imageUrl = '/api/assets/desktop-synthetic-fixture';
+  await database().query("INSERT INTO generation_jobs(id,user_id,kind,idempotency_key,input_hash,input,state,result,request_id,cost) VALUES($1,$2,'animate',$3,'fixture',$4,'success',$5,'desktop-verification',0)",[jobId,userId,crypto.randomUUID(),{imageUrl},{videoUrl}]);
+  await database().query("INSERT INTO identity_checks(job_id,user_id,image_url,source_url,model,policy,passed,verdict) VALUES($1,$2,$3,$3,'synthetic-test-only','pet-identity-v1',true,'{}')",[jobId,userId,imageUrl]);
   await database().query("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '10 minutes')",[tokenHash,userId]);
   try {
     const executable = path.resolve('app-shell/node_modules/electron/dist/electron.exe');
-    for (const mode of ['online','offline']) {
+    for (const mode of ['online','offline','legacy-cache']) {
+      if (mode === 'legacy-cache') {
+        const manifest = path.join(directory, 'pets', 'last.json');
+        const { hash } = JSON.parse(fs.readFileSync(manifest, 'utf8'));
+        fs.writeFileSync(manifest, JSON.stringify({ hash }));
+      }
       const result = spawnSync(executable,[path.resolve('scripts/desktop-smoke.cjs')],{env:{...process.env,LEMON_TEST_ORIGIN:origin,LEMON_TEST_USER_DATA:directory,LEMON_TEST_TOKEN:token,LEMON_TEST_VIDEO:videoUrl,LEMON_TEST_MODE:mode},windowsHide:true,encoding:'utf8',timeout:60000});
       if (result.error) { logger.error({mode,stdout:result.stdout,stderr:result.stderr},'desktop child diagnostic output'); throw result.error; }
       if (result.status !== 0) throw new Error(`Desktop ${mode} verification failed: ${result.stderr}\n${result.stdout}`);
