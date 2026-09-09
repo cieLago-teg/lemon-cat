@@ -2,6 +2,7 @@ import { ensureAuth } from "./auth";
 import { Agent, fetch as undiciFetch } from "undici";
 import { createRequire } from 'node:module';
 import type { ServiceLogger } from './server/logger.cjs';
+import { buildVisionRequest, buildPetImageRequest, normalizeFeatureTags } from './model-config';
 const logger = createRequire(process.cwd() + '/package.json')('./lib/server/logger.cjs').logger as ServiceLogger;
 
 
@@ -41,6 +42,7 @@ async function bailianFetch<T>(path: string, body: Record<string, unknown>): Pro
   const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s 总超时
 
   let response: DomResponse;
+  let text: string;
   try {
     response = (await undiciFetch(`${baseUrl}${path}`, {
       method: "POST",
@@ -54,6 +56,7 @@ async function bailianFetch<T>(path: string, body: Record<string, unknown>): Pro
       // 否则在 DoH / 跨网 DNS 场景下会被 undici 内部 timeout 干死。
       dispatcher: getDashscopeAgent()
     })) as unknown as DomResponse;
+    text = await response.text();
   } catch (err) {
     throw new Error('百炼请求传输失败，提交结果需核对', { cause: err });
   } finally {
@@ -61,9 +64,7 @@ async function bailianFetch<T>(path: string, body: Record<string, unknown>): Pro
   }
 
   let data: Record<string, unknown> = {};
-  const text = await response.text();
-
-  logger.info({ path, status: response.status }, 'provider response');
+  logger.info({ path, model: body.model, status: response.status }, 'provider response');
 
   try {
     if (text) {
@@ -130,7 +131,10 @@ async function withRetry<T>(runner: () => Promise<T>, attempts = 1) {
 
 
 type ChatCompletionResponse = {
+  request_id?: string;
+  usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
   choices?: Array<{
+    finish_reason?: string;
     message?: {
       content?: string | Array<{ type?: string; text?: string }>;
     };
@@ -142,6 +146,7 @@ type ImageGenerationResponse = {
 };
 
 type DashscopeMultimodalGenerationResponse = {
+  request_id?: string;
   output?: {
     choices?: Array<{
       message?: {
@@ -153,52 +158,28 @@ type DashscopeMultimodalGenerationResponse = {
   code?: string;
 };
 
-function normalizePetFeatures(content: string) {
-  const trimmed = content.trim();
-  // 去掉可能包含的 json 代码块标记或者类似 "输出：" 的前缀
-  const cleaned = trimmed.replace(/^输出：/g, "").replace(/^```json/g, "").replace(/```$/g, "").trim();
-  return Array.from(cleaned).slice(0, 150).join("");
-}
-
 export async function extractPetFeatures(imageBase64WithMime: string, model: string, systemPrompt: string) {
-  const payload = {
-    model,
-    messages: [
-      {
-        role: "system",
-        content: systemPrompt
-      },
-      {
-        role: "user",
-        content: [
-          { type: "text", text: "提取这只宠物的可用于绘图的关键外观特征。" },
-          {
-            type: "image_url",
-            image_url: {
-              url: imageBase64WithMime
-            }
-          }
-        ]
-      }
-    ]
-  };
+  const payload = buildVisionRequest(imageBase64WithMime, model, systemPrompt);
+  const started = Date.now();
   const response = await withRetry(() => bailianFetch<ChatCompletionResponse>("/chat/completions", payload));
+  logger.info({ model, ms: Date.now() - started, usage: response.usage, providerRequestId: response.request_id }, 'pet features extracted');
+  if (response.choices?.[0]?.finish_reason === 'length') throw new Error('特征提取输出被截断，请缩短提取要求');
   const content = response.choices?.[0]?.message?.content;
   if (typeof content === "string") {
-    return normalizePetFeatures(content);
+    return normalizeFeatureTags(content).join('，');
   }
   if (Array.isArray(content)) {
     const merged = content.map((item) => item.text ?? "").join("").trim();
     if (merged) {
-      return normalizePetFeatures(merged);
+      return normalizeFeatureTags(merged).join('，');
     }
   }
   throw new Error("特征提取结果为空");
 }
 
-export async function generatePetImage(prompt: string, source: string, model: string) {
-  if (!/^qwen-image-edit-(plus|max)(-\d{4}-\d{2}-\d{2})?$/.test(model)) throw new Error('宠物图生图需要 Qwen Image Edit Plus/Max 模型');
-  return runSyncMultimodalImageGeneration(`保持参考图中同一只宠物的身份：保留独有毛色与花纹位置、脸型、耳型、眼睛特征。只改变绘画风格，不替换成同品种其他宠物。\n${prompt}`, model, '1024*1024', source);
+export async function generatePetImage(prompt: string, source: string, model: string, seed?: number) {
+  if (!source) throw new Error('宠物图像编辑必须携带原图');
+  return runSyncMultimodalImageGeneration(prompt, model, '1024*1024', source, seed);
 }
 
 export async function generateStyledImage(prompt: string, model: string) {
@@ -242,17 +223,17 @@ export async function generateStyledImage(prompt: string, model: string) {
   throw new Error('图片生成结果为空，提交结果需核对');
 }
 
-  async function runSyncMultimodalImageGeneration(prompt: string, model: string, size = "1024*1024", source?: string) {
+  async function runSyncMultimodalImageGeneration(prompt: string, model: string, size = "1024*1024", source?: string, seed?: number) {
     const { apiKey } = ensureAuth('dashscope');
     const url = `${getDashscopeRoot()}/api/v1/services/aigc/multimodal-generation/generation`;
-    // wan2.6 专属参数：关闭扩写与水印，保证结果图贴合 prompt 且无水印。
-    // qwen-image 不识别这些字段，故仅在 wan 前缀下附加，避免误伤。
+    // 宠物编辑独立组装参数；显式关闭自动扩写，保留主人确认过的细节和画风。
     const parameters: Record<string, unknown> = { size, n: 1 };
     if (model.startsWith("wan")) {
       parameters.prompt_extend = false;
       parameters.watermark = false;
     }
     let response: DomResponse;
+    const started = Date.now();
     try {
       // 2026-06-04：补上 dispatcher，把 undici 默认 10s connectTimeout
       // 拉到 60s，覆盖 DoH / 手机热点下的冷启动 DNS 慢场景。
@@ -264,7 +245,7 @@ export async function generateStyledImage(prompt: string, model: string) {
         },
         dispatcher: getDashscopeAgent(),
         signal: AbortSignal.timeout(120000),
-        body: JSON.stringify({
+        body: JSON.stringify(source ? buildPetImageRequest(prompt, source, model, seed) : {
         model,
         input: {
           messages: [
@@ -296,9 +277,10 @@ export async function generateStyledImage(prompt: string, model: string) {
     if (text) {
       data = JSON.parse(text) as DashscopeMultimodalGenerationResponse;
     }
-  } catch {
-    throw new Error(`百炼多模态生图返回非JSON: ${response.status}`);
+  } catch (err) {
+    throw new Error(`百炼多模态生图返回非JSON: ${response.status}`, { cause: err });
   }
+  logger.info({ model, status: response.status, ms: Date.now() - started, promptChars: prompt.length, hasReference: Boolean(source), providerRequestId: data.request_id }, 'image provider response');
   if (!response.ok) {
     throw new Error(data.message ?? data.code ?? `百炼多模态生图失败 (${response.status})`);
   }

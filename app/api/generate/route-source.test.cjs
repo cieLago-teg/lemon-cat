@@ -13,7 +13,5 @@ test("generate route queues authenticated jobs and worker preserves prompt const
   assert.match(source, /await enqueue/);
   assert.doesNotMatch(source, /await generateStyledImage/);
   const worker = fs.readFileSync(path.join(process.cwd(), 'scripts/worker.ts'), 'utf8');
-  assert.match(worker, /const combinedFeatures =/);
-  assert.match(worker, /NON_ANTHRO_CONSTRAINT/);
-  assert.match(worker, /TAIL_VISIBLE_CONSTRAINT/);
+  assert.match(worker, /buildPetImagePrompt\(template, body\)/);
 });

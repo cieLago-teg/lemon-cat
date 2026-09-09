@@ -10,6 +10,7 @@
     "migrate:legacy": "node --env-file-if-exists=.env.1a.local scripts/migrate-legacy.cjs",
     "migrate:pets": "node --env-file-if-exists=.env.1a.local scripts/import-pets.cjs",
     "worker:build": "tsc -p tsconfig.worker.json",
+    "models:inspect": "npm run worker:build && node --env-file-if-exists=.env.local --env-file-if-exists=.env.1a.local scripts/model-lab.cjs",
     "worker": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.1a.local .worker/scripts/worker.js",
     "clean": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true})}catch(e){}\"",
     "dev:reset": "npm run clean && npm run dev",

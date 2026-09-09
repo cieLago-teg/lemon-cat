@@ -2,7 +2,8 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import crypto from 'node:crypto';
 import { extractPetFeatures, generatePetImage, getDashscopeAgent } from '../lib/bailian';
-import { resolveFeatureSystemPrompt, resolveStylePrompts, injectPetFeatures, NON_ANTHRO_CONSTRAINT, TAIL_VISIBLE_CONSTRAINT, WHITE_BG_PANEL_CONSTRAINT, CHROMA_KEY_BG_CONSTRAINT } from '../lib/prompts';
+import { resolveFeatureSystemPrompt, resolveStylePrompts, buildPetImagePrompt, PROMPT_VERSION } from '../lib/prompts';
+import { resolveModels, normalizeFeatureTags, buildPetVideoRequest } from '../lib/model-config';
 import { fetch as upstreamFetch } from 'undici';
 
 // 编译输出仍使用工作目录中的 CJS 模块，避免复制原生 ONNX/FFmpeg 依赖。
@@ -24,7 +25,7 @@ type WanPayload = { output?: { task_id?: string; task_status?: string; video_url
 async function imageData(userId: string, url: string) {
   if (!url?.startsWith('/api/assets/')) throw new Error('需要持久化的原图素材，请重新上传');
   const asset = await ownedAsset(userId, url.slice('/api/assets/'.length));
-  if (!asset.content_type.startsWith('image/')) throw new Error('Identity source must be an image');
+  if (!asset.content_type.startsWith('image/')) throw new Error('Reference source must be an image');
   return `data:${asset.content_type};base64,${(await readAsset(asset)).toString('base64')}`;
 }
 
@@ -60,31 +61,28 @@ export const adapter = {
   async submit(job: Job) {
     if (!process.env.DASHSCOPE_API_KEY) throw Object.assign(new Error('Provider key not configured'), { safeToRefund: true });
     const body = job.input;
+    const models = resolveModels();
     if (job.kind === 'extract') {
-      const petFeatures = await extractPetFeatures(`data:${body.mimeType};base64,${body.imageBase64}`, process.env.BAILIAN_VL_MODEL || 'qwen3-vl-plus', resolveFeatureSystemPrompt(body.featureSystemPrompt));
-      return { result: { petFeatures, tags: petFeatures.split(/[,，、。.\n]/).map((tag) => tag.trim()).filter(Boolean) } };
+      const petFeatures = await extractPetFeatures(`data:${body.mimeType};base64,${body.imageBase64}`, models.vision, resolveFeatureSystemPrompt(body.featureSystemPrompt));
+      return { result: { petFeatures, tags: normalizeFeatureTags(petFeatures), model: models.vision, promptVersion: PROMPT_VERSION } };
     }
     if (job.kind === 'generate') {
       const source = await imageData(job.user_id, body.sourceImageUrl || '');
-      const combinedFeatures = [body.petVibe ? `${body.petVibe}的氛围与神态` : '', (body.aiTags || []).join('，'), body.customFeatures ? `补充特征：${body.customFeatures}` : ''].filter(Boolean).join('，');
       const results = [];
       for (const { style, template } of resolveStylePrompts(body.stylePrompts)) {
-        const bg = body.bgMode === 'green' ? CHROMA_KEY_BG_CONSTRAINT : body.bgMode === 'none' ? '' : WHITE_BG_PANEL_CONSTRAINT;
-        const prompt = `${injectPetFeatures(template, combinedFeatures)}\n${NON_ANTHRO_CONSTRAINT}\n${TAIL_VISIBLE_CONSTRAINT}\n${bg}`;
-        const generated = await generatePetImage(prompt, source, process.env.BAILIAN_PET_IMAGE_MODEL || 'qwen-image-edit-plus-2025-12-15');
+        const prompt = buildPetImagePrompt(template, body);
+        logger.info({ jobId: job.id, model: models.image, style, promptVersion: PROMPT_VERSION, promptChars: prompt.length }, 'pet image submission');
+        const generated = await generatePetImage(prompt, source, models.image);
         const { bytes, contentType } = await downloadMedia(generated, 5 * 1024 * 1024);
         const imageUrl = await putAsset(job.user_id, bytes, contentType);
-        results.push({ style, imageUrl, prompt });
+        results.push({ style, imageUrl, prompt, model: models.image, promptVersion: PROMPT_VERSION });
       }
       return { result: { results } };
     }
     if (body.sourceImageUrl && body.sourceImageUrl !== body.imageUrl) throw new Error('Cannot replace selected animation image');
-    const imageUrl = await reference(job);
-    const payload = await wan('/services/aigc/video-generation/video-synthesis', {
-      model: process.env.DASHSCOPE_VIDEO_MODEL || 'wan2.6-i2v-flash',
-      input: { prompt: buildIdlePrompt(body.prompt || '', body.style || ''), img_url: imageUrl },
-      parameters: { resolution: '720P', watermark: false, prompt_extend: true, audio: false }
-    });
+    const imageUrl = /^wan2\.7-i2v(?:-|$)/.test(models.video) && body.imageUrl.startsWith('/api/assets/')
+      ? await imageData(job.user_id, body.imageUrl) : await reference(job);
+    const payload = await wan('/services/aigc/video-generation/video-synthesis', buildPetVideoRequest(buildIdlePrompt(body.prompt || '', body.style || ''), imageUrl, models.video));
     return { upstreamId: payload.output?.task_id };
   },
   async poll(job: Job) {
@@ -119,7 +117,7 @@ async function main() {
   let stopping = false;
   process.on('SIGINT', () => { stopping = true; });
   process.on('SIGTERM', () => { stopping = true; });
-  logger.info({ workerId: id }, 'worker starting');
+  logger.info({ workerId: id, models: resolveModels(), promptVersion: PROMPT_VERSION }, 'worker starting');
   const heartbeat = setInterval(() => {
     database().query('INSERT INTO worker_heartbeats(id) VALUES($1) ON CONFLICT(id) DO UPDATE SET updated_at=now()', [id])
       .catch((err: unknown) => logger.error({ err, workerId: id }, 'worker heartbeat failed'));

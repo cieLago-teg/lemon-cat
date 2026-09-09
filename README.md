@@ -50,7 +50,7 @@ npm run migrate
 
 已有旧档案时，先备份 `data/`，再依次运行 `npm run migrate:legacy`、`npm run migrate:pets`。纯新安装跳过这两步。本仓库现有 17 份旧档案已经导入 PostgreSQL；重复导入不会覆盖数据库中的编辑。
 
-`ASSET_STORAGE=local` 支持私有素材、已有档案与桌宠验收；Wan 读取私有参考图还需要配置可达的私有 S3 桶。服务端额度只是内测调用预算，不是已接入支付的余额；配置云端存储与实际付费额度后才进行真实生成验收。
+`ASSET_STORAGE=local` 支持私有素材、已有档案与桌宠验收；默认 Wan 2.6 读取私有参考图还需要配置可达的私有 S3 桶。服务端额度只是内测调用预算，不是已接入支付的余额；配置云端存储与实际付费额度后才进行真实生成验收。
 
 ### 3. 准备模型文件（抠像用）
 
@@ -83,10 +83,12 @@ npm run dev
 | `DASHSCOPE_API_KEY` | ✅ | — | 阿里云 DashScope API Key（百炼平台） |
 | `BAILIAN_BASE_URL` | — | `https://dashscope.aliyuncs.com/compatible-mode/v1` | 百炼 OpenAI 兼容接口地址 |
 | `BAILIAN_VL_MODEL` | — | `qwen3-vl-plus` | 宠物特征提取模型（视觉语言） |
-| `BAILIAN_IMAGE_MODEL` | — | `wan2.6-t2i` | 风格化形象生成模型 |
+| `BAILIAN_PET_IMAGE_MODEL` | — | `qwen-image-edit-plus-2025-12-15` | 携带原图的宠物风格化编辑模型；旧 `BAILIAN_IMAGE_MODEL` 不控制此流程 |
 | `DASHSCOPE_VIDEO_MODEL` | — | `wan2.6-i2v-flash` | 动态视频生成模型 |
 | `DASHSCOPE_VIDEO_BASE_URL` | — | 自动从 `BAILIAN_BASE_URL` 推导 | DashScope 视频 API 地址 |
 | `FFMPEG_PATH` | — | `bin/ffmpeg.exe` | 自定义 ffmpeg 路径（视频抠像用） |
+
+运行 `npm run models:inspect` 查看实际生效模型（不调用付费 API）。[模型与提示词复核](docs/model-review-2026-09-09.md)包含同模型优化、12 张真实对比图的证据位置、新 Qwen 模型接入方式及微调建议。对比工具默认只预览提示词，显式加 `--run` 才调用模型。
 
 ---
 
