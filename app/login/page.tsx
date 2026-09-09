@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { safeReturnPath } from "@/lib/client/navigation.cjs";
 
 type PasswordStrength = { label: "低" | "中" | "高"; score: 1 | 2 | 3; hint: string };
@@ -23,6 +23,26 @@ export default function LoginPage() {
   const [inviteCode, setInviteCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [localDeveloper, setLocalDeveloper] = useState(false);
+  const [developerStarting, setDeveloperStarting] = useState(false);
+
+  const enterLocalDeveloper = async () => {
+    setDeveloperStarting(true);
+    setError("");
+    try {
+      const response = await fetch("/api/developer/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) throw new Error(data.error || `开发者入口启动失败 (${response.status})`);
+      window.location.href = safeNext();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "开发者入口启动失败");
+      setDeveloperStarting(false);
+    }
+  };
+
+  useEffect(() => {
+    setLocalDeveloper(["localhost", "127.0.0.1"].includes(window.location.hostname));
+  }, []);
 
   const safeNext = () => {
     if (typeof window === "undefined") return "/create";
@@ -160,6 +180,14 @@ export default function LoginPage() {
               {isLogin ? "去注册" : "去登录"}
             </button>
           </p>
+          {localDeveloper ? (
+            <div className="mt-6 border-t border-[#5c2e10]/10 pt-5 text-center">
+              <button type="button" onClick={() => void enterLocalDeveloper()} disabled={developerStarting} className="text-xs font-bold text-amber-800 underline underline-offset-4 disabled:opacity-60">
+                {developerStarting ? "正在进入本地开发模式…" : "我是开发者：免注册进入本地测试"}
+              </button>
+              <p className="mt-1 text-[11px] text-[#5c2e10]/50">仅 localhost / 127.0.0.1 可用，正式环境自动关闭</p>
+            </div>
+          ) : null}
         </div>
       </div>
     </main>

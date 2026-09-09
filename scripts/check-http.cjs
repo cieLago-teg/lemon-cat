@@ -14,6 +14,11 @@ async function api(method, route, cookie, body, headers = {}) {
 function status(response, expected) { assert.equal(response.status,expected); checks++; }
 async function main() {
   assert.ok(['localhost','127.0.0.1'].includes(new URL(base).hostname), 'HTTP verification runs only against local services');
+  const developerSession = await api('POST','/api/developer/session',null,{});
+  status(developerSession,200);
+  const developerCookie = developerSession.headers.get('set-cookie').split(';')[0];
+  assert.equal((await developerSession.clone().json()).mode,'local-developer'); checks++;
+  status(await api('GET','/api/archive',developerCookie),200);
   status(await api('GET','/api/archive'),401);
   status(await api('POST','/api/auth/register',null,{email:`too-short-${crypto.randomUUID()}@lemoncat.local`,password:'aB3!xyz',inviteCode:process.env.REGISTRATION_CODE}),400);
   const accounts = [];
