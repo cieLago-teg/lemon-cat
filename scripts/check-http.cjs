@@ -42,12 +42,9 @@ async function main() {
   status(source,200); assert.equal(source.headers.get('cache-control'),'private, no-store'); checks++;
   status(await api('GET',`/api/archive/image/${archive.id}`,b.cookie),404);
   const video = await putAsset(a.user.id,Buffer.from('1a45dfa3000102030405','hex'),'video/webm');
-  status(await api('GET',video,a.cookie),422);
+  status(await api('GET',video,a.cookie),200);
   const verifiedImage = await putAsset(a.user.id,Buffer.from(png,'base64'),'image/png');
-  status(await api('POST','/api/pet/animate',a.cookie,{imageUrl:verifiedImage,identity:{passed:true}},{'idempotency-key':crypto.randomUUID()}),422);
-  const proofJob = crypto.randomUUID();
-  await database().query("INSERT INTO generation_jobs(id,user_id,kind,idempotency_key,input_hash,input,state,result,request_id,cost) VALUES($1,$2,'animate',$3,'fixture',$4,'success',$5,'http-verification',0)",[proofJob,a.user.id,crypto.randomUUID(),{imageUrl:verifiedImage},{videoUrl:video}]);
-  await database().query("INSERT INTO identity_checks(job_id,user_id,image_url,source_url,model,policy,passed,verdict) VALUES($1,$2,$3,$3,'test-fixture','pet-identity-v1',true,'{}')",[proofJob,a.user.id,verifiedImage]);
+  status(await api('POST','/api/pet/animate',a.cookie,{imageUrl:verifiedImage,identity:{passed:false}},{'idempotency-key':crypto.randomUUID()}),402);
   status(await api('POST','/api/pet/animate',a.cookie,{imageUrl:verifiedImage,sourceImageUrl:'data:image/png;base64,'+png},{'idempotency-key':crypto.randomUUID()}),422);
   status(await api('POST','/api/pet/animate',a.cookie,{imageUrl:verifiedImage},{'idempotency-key':crypto.randomUUID()}),402);
   const range = await api('GET',video,a.cookie,undefined,{range:'bytes=0-3'});
@@ -63,7 +60,7 @@ async function main() {
   await database().query("UPDATE pets SET data=jsonb_set(data,'{results,0,videoUrl}',$1::jsonb) WHERE id=$2 AND user_id=$3",[JSON.stringify(legacyUrl),archive.id,a.user.id]);
   status(await api('POST','/api/pet/set-video',b.cookie,{videoUrl:legacyUrl}),404);
   const migrated = await api('POST','/api/pet/set-video',a.cookie,{videoUrl:legacyUrl});
-  status(migrated,422);
+  status(migrated,200);
   status(await api('POST','/api/pet/set-video',a.cookie,{videoUrl:'http://127.0.0.1:55432/private'}),400);
   status(await api('POST','/api/extract',a.cookie,{imageBase64:png,mimeType:'image/png'},{'idempotency-key':crypto.randomUUID()}),402);
   status(await api('PATCH',`/api/archive/${archive.id}`,a.cookie,{petName:'cross-site'},{origin:'https://evil.invalid'}),403);

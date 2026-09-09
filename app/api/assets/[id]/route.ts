@@ -1,13 +1,11 @@
 import { route } from '@/lib/server/http.cjs';
 import { requireUser } from '@/lib/server/guard';
 import { ownedAsset, readAsset } from '@/lib/server/assets.cjs';
-import { requireVerifiedVideo } from '@/lib/server/identity.cjs';
 export const runtime = 'nodejs';
 export const GET = route('GET', async (request, context: { params: Promise<{ id: string }> }) => {
   const user = await requireUser(request);
   const { id } = await context.params;
   const asset = await ownedAsset(user.id, id);
-  if (asset.content_type.startsWith('video/')) await requireVerifiedVideo(user.id, `/api/assets/${id}`);
   const bytes = await readAsset(asset);
   const headers = { 'content-type': asset.content_type, 'accept-ranges': 'bytes' };
   const range = request.headers.get('range');

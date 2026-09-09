@@ -22,7 +22,6 @@ async function main() {
   const jobId = crypto.randomUUID();
   const imageUrl = '/api/assets/desktop-synthetic-fixture';
   await database().query("INSERT INTO generation_jobs(id,user_id,kind,idempotency_key,input_hash,input,state,result,request_id,cost) VALUES($1,$2,'animate',$3,'fixture',$4,'success',$5,'desktop-verification',0)",[jobId,userId,crypto.randomUUID(),{imageUrl},{videoUrl}]);
-  await database().query("INSERT INTO identity_checks(job_id,user_id,image_url,source_url,model,policy,passed,verdict) VALUES($1,$2,$3,$3,'synthetic-test-only','pet-identity-v1',true,'{}')",[jobId,userId,imageUrl]);
   await database().query("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '10 minutes')",[tokenHash,userId]);
   try {
     const executable = path.resolve('app-shell/node_modules/electron/dist/electron.exe');

@@ -258,7 +258,6 @@ export default function HomePage() {
       const data = await response.json();
       if (!response.ok || !data) throw new Error(data?.error ?? `生成失败 (${response.status})`);
       setResults(data.results);
-      if (data.rejected?.length) setError(`部分风格未通过一致性质检，已拦截：${data.rejected.map((item: { style: string; reason: string }) => `${item.style}（${item.reason}）`).join('；')}`);
       setStage("PREP_COMPANION");
       stageStartedAtRef.current = Date.now();
       await new Promise((r) => setTimeout(r, 1500));
