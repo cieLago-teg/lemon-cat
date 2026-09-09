@@ -20,6 +20,7 @@ function historical(ref, file, seed) {
   const nativeRequire = mod.require.bind(mod);
   mod.require = (id) => {
     if (id === './auth') return require('../.worker/lib/auth.js');
+    if (id === './model-config') return historical(ref, 'lib/model-config.ts', seed);
     if (id === 'undici') {
       const undici = require('undici');
       return { ...undici, fetch: (url, options) => {
@@ -49,7 +50,7 @@ async function saveReport(directory, report) {
 
 async function main() {
   const { values } = parseArgs({ options: {
-    image: { type: 'string' }, models: { type: 'string' }, styles: { type: 'string', default: '0,1,2,3' },
+    image: { type: 'string' }, job: { type: 'string' }, models: { type: 'string' }, styles: { type: 'string' },
     features: { type: 'string', default: '' }, details: { type: 'string', default: '' },
     baseline: { type: 'string' }, seed: { type: 'string', default: '42' },
     'vision-models': { type: 'string' }, report: { type: 'string' }, run: { type: 'boolean', default: false }
@@ -63,26 +64,43 @@ async function main() {
     return;
   }
   const configured = resolveModels();
-  if (!values.image) {
+  if (!values.image && !values.job) {
     logger.info({ configured, supportedImageModels: IMAGE_MODELS, promptVersion: prompts.PROMPT_VERSION, legacyImageModelIgnored: Boolean(process.env.BAILIAN_IMAGE_MODEL), keyConfigured: Boolean(process.env.DASHSCOPE_API_KEY) }, 'model configuration (no API calls)');
     return;
   }
   const seed = Number(values.seed);
   if (!Number.isInteger(seed) || seed < 0 || seed > 2147483647) throw new Error('seed 必须在 0 至 2147483647 之间');
-  const selected = [...new Set(values.styles.split(',').map(Number))];
-  if (!selected.length || selected.some((i) => !Number.isInteger(i) || i < 0 || i > 3)) throw new Error('styles 使用 0,1,2,3 中的索引');
+  const selected = values.styles === undefined ? prompts.STYLE_PROMPTS.map((_, i) => i) : [...new Set(values.styles.split(',').map(Number))];
+  if (!selected.length || selected.some((i) => !Number.isInteger(i) || i < 0 || i >= prompts.STYLE_PROMPTS.length)) throw new Error(`styles 使用 0 至 ${prompts.STYLE_PROMPTS.length - 1} 的索引`);
   const models = [...new Set((values.models || configured.image).split(',').map((x) => x.trim()))];
   if (models.some((model) => !IMAGE_MODELS.includes(model))) throw new Error('包含未支持的图像模型');
   const visions = values['vision-models'] ? [...new Set(values['vision-models'].split(',').map((x) => x.trim()))] : [];
   const imageCalls = selected.length * (models.length + Number(Boolean(values.baseline)));
   if (imageCalls > 12 || visions.length > 3) throw new Error('一次评估最多12张图片及3次特征提取，请拆分评估');
-  const extension = path.extname(values.image).toLowerCase();
+  if (values.image && values.job) throw new Error('image 与 job 只能选择一个');
+  let extension, bytes, input;
+  if (values.job) {
+    // 本地维护者复现指定任务：读取原图与主人确认的输入，不改动原任务或重新识别。
+    const { database, close } = require('../lib/server/db.cjs');
+    const { ownedAsset, readAsset } = require('../lib/server/assets.cjs');
+    try {
+      const { rows } = await database().query('SELECT user_id,kind,input FROM generation_jobs WHERE id=$1', [values.job]);
+      const job = rows[0];
+      if (!job || job.kind !== 'generate' || !job.input.sourceImageUrl?.startsWith('/api/assets/')) throw new Error('job 必须是带持久化原图的生成任务');
+      const asset = await ownedAsset(job.user_id, job.input.sourceImageUrl.slice('/api/assets/'.length));
+      extension = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp' }[asset.content_type];
+      bytes = await readAsset(asset);
+      input = { aiTags: job.input.aiTags, customFeatures: job.input.customFeatures, petVibe: job.input.petVibe, bgMode: job.input.bgMode };
+    } finally { await close(); }
+  } else {
+    extension = path.extname(values.image).toLowerCase();
+    bytes = await fs.readFile(values.image);
+    input = { aiTags: values.features ? normalizeFeatureTags(values.features) : [], customFeatures: values.details };
+  }
   const mime = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' }[extension];
   if (!mime) throw new Error('原图仅支持 PNG、JPEG、WEBP');
-  const bytes = await fs.readFile(values.image);
   if (bytes.length > 5 * 1024 * 1024) throw new Error('原图不可超过5MB');
   const source = `data:${mime};base64,${bytes.toString('base64')}`;
-  const input = { aiTags: values.features ? normalizeFeatureTags(values.features) : [], customFeatures: values.details };
   const images = [];
   let baselineProvider;
   if (values.baseline) {
@@ -90,8 +108,10 @@ async function main() {
     baselineProvider = historical(values.baseline, 'lib/bailian.ts', seed);
     const features = [input.aiTags.join('，'), input.customFeatures ? `补充特征：${input.customFeatures}` : ''].filter(Boolean).join('，');
     for (const index of selected) {
-      const style = old.STYLE_PROMPTS[index];
-      images.push({ variant: `baseline-${values.baseline}`, model: configured.image, style: style.style, prompt: `${old.injectPetFeatures(style.template, features)}\n${old.NON_ANTHRO_CONSTRAINT}\n${old.TAIL_VISIBLE_CONSTRAINT}\n${old.WHITE_BG_PANEL_CONSTRAINT}` });
+      const style = old.STYLE_PROMPTS.find((item) => item.style === prompts.STYLE_PROMPTS[index].style);
+      if (!style) throw new Error(`历史版本没有风格：${prompts.STYLE_PROMPTS[index].style}`);
+      const prompt = old.buildPetImagePrompt ? old.buildPetImagePrompt(style.template, input) : `${old.injectPetFeatures(style.template, features)}\n${old.NON_ANTHRO_CONSTRAINT}\n${old.TAIL_VISIBLE_CONSTRAINT}\n${old.WHITE_BG_PANEL_CONSTRAINT}`;
+      images.push({ variant: `baseline-${values.baseline}`, model: configured.image, style: style.style, prompt });
     }
   }
   for (const model of models) for (const index of selected) {
@@ -101,7 +121,7 @@ async function main() {
   const report = { createdAt: new Date().toISOString(), run: values.run, seed, extension, sourceSha256: crypto.createHash('sha256').update(bytes).digest('hex'), imageCalls, visionCalls: visions.length, images, vision: [] };
   const directory = path.resolve('data/evaluations', `model-lab-${crypto.randomUUID()}`);
   await fs.mkdir(directory, { recursive: true });
-  await fs.copyFile(values.image, path.join(directory, `source${extension}`));
+  await fs.writeFile(path.join(directory, `source${extension}`), bytes);
   await saveReport(directory, report);
   logger.info({ directory, imageCalls, visionCalls: visions.length, paidCallsEnabled: values.run }, 'model evaluation prepared');
   if (!values.run) return;

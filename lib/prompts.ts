@@ -1,4 +1,4 @@
-export const PROMPT_VERSION = 'pet-appearance-2026-09-09';
+export const PROMPT_VERSION = 'pet-styles-2026-09-09-v5';
 
 export const DEFAULT_FEATURE_SYSTEM_PROMPT = `你是宠物外观记录助手，提取照片中主要宠物可见且可用于绘画的特征，供主人逐条删改。
 按以下顺序输出：物种、主毛色及分布、脸部和胸腹花纹、耳型与耳缘特征、可见眼色、毛长、体型、可见爪部和尾部特征。优先描述能区别同品种个体的具体色块位置。
@@ -13,13 +13,13 @@ export const NON_ANTHRO_CONSTRAINT =
   "保持该物种的自然解剖结构与坐姿、卧姿或站姿，不拟人直立；衣物饰品仅在主人明确要求时添加。";
 
 export const TAIL_VISIBLE_CONSTRAINT =
-  "保留真实尾型；短尾、无尾或肢体缺失按原图及主人说明保留，不强行补齐。可见尾部不裁切；原图遮挡处保守处理，不编造独特花纹。";
+  "保留原图与主人说明的尾型及肢体缺失；遮挡处不编造独特花纹。";
 
 export const CHROMA_KEY_BG_CONSTRAINT =
-  "背景必须为单一纯色绿幕（高饱和纯绿色，接近抠像绿幕），画面中除宠物主体外不允许出现任何其他物体/阴影/底座/纹理/渐变/光晕；宠物主体边缘必须清晰干净，禁止背景色溢出到主体边缘，方便后续一键抠图得到透明背景。";
+  "宠物以外的背景为均匀纯绿色绿幕，无场景、地面、投影、道具或漂浮笔触。绿幕不染到宠物身上；宠物内部的笔触、墨色浓淡和材质按目标画风保留。";
 
 export const WHITE_BG_PANEL_CONSTRAINT =
-  "背景必须为纯白色背景面板（纯白 #FFFFFF），画面中除宠物主体外不允许出现任何其他物体/阴影/底座/地面/投影/纹理/渐变/光晕/噪点；背景必须完全均匀干净且四周留白明显，便于后续算法抠图得到透明背景。";
+  "背景均匀纯白 #FFFFFF，无地面、投影、道具、纸纹、画外墨点或印章。背景限制不作用于宠物内部笔触与墨色浓淡。";
 
 export type StylePrompt = {
   style: string;
@@ -30,12 +30,7 @@ export const STYLE_PROMPTS: StylePrompt[] = [
   {
     style: "简约可爱水墨风",
     template:
-      "极简治愈的新中式水墨简笔插画，Q版大头小身，少量干净毛笔线条、淡彩色块，轻盈可爱。用概括色块保留原宠物毛色分布与标志花纹，不因简化丢失关键识别点；不画写实毛发、复杂光影或工笔细节。[宠物特征]"
-  },
-  {
-    style: "和纸拼贴绘本风",
-    template:
-      "治愈系和纸拼贴绘本插画，Q版比例。以原宠物毛色为纸片配色，硬边色块分层构成主体，轻微手工剪纸边缘与主体内部的纸层遮挡，整体二维、层次清楚。拼贴仅限宠物内部，不添加背景纸片、底座、外框，不混入水墨、像素或写实毛发。[宠物特征]"
+      "目标画风：简约可爱的中国写意水墨萌宠（Chinese ink wash）。圆头短身，头约占身高三分之一，五官用少量浓墨点画，温柔灵动。用几笔饱含水分的淡墨铺出圆润身体，原毛色用少量低饱和淡彩渗入墨块。毛笔提按形成粗细变化和断续轮廓，局部枯笔飞白；墨色浓淡与水痕只存在于宠物身体内部。轮廓由墨块和留白共同形成，不用均匀黑线包围。用概括的笔触保留标志花纹位置与原有颜色关系，不逐根画毛。不要矢量描边、贴纸平涂、塑料高光或工笔写实。画外没有墨点、飞溅、题字、印章或落地阴影。[宠物特征]"
   },
   {
     style: "粗描边贴纸风",
@@ -93,13 +88,15 @@ export function buildPetImagePrompt(template: string, input: PetPromptInput) {
   const features = [
     input.customFeatures?.trim() ? `主人明确补充与修正（优先于识别标签）：${input.customFeatures.trim()}` : '',
     input.aiTags?.length ? `主人保留的外观标签：${input.aiTags.join('，')}` : '',
-    input.petVibe?.trim() ? `神态氛围：${input.petVibe.trim()}。仅影响表情，不改变毛色、体型或添加道具。` : ''
+    input.petVibe?.trim() ? `仅表情氛围：${input.petVibe.trim()}` : ''
   ].filter(Boolean).join('\n');
   const bg = input.bgMode === 'green' ? CHROMA_KEY_BG_CONSTRAINT : input.bgMode === 'none' ? '' : WHITE_BG_PANEL_CONSTRAINT;
   return [
-    '将参考图中这一只宠物转绘成单个桌宠形象。保留其脸部配色、斑纹位置、耳型和体型识别点；风格只改变表现手法。忽略原图的人、背景和文字。',
+    '将参考图中这一只宠物转绘成单个桌宠形象。',
+    injectPetFeatures(template, ''),
+    '原图只提供身份：保留脸部配色、标志斑纹位置、耳型与毛长；线条、上色、材质全部按目标画风重绘，可概括细节及调整头身比例。忽略原图背景、人物、文字。',
     features,
-    '全身居中，耳朵与可见爪尾完整入画，四周留出约一成空白，不做多视图或多只拼图。',
-    injectPetFeatures(template, ''), NON_ANTHRO_CONSTRAINT, TAIL_VISIBLE_CONSTRAINT, bg
+    '全身居中，耳爪尾完整入画，四周留一成空白。',
+    NON_ANTHRO_CONSTRAINT, TAIL_VISIBLE_CONSTRAINT, bg
   ].filter(Boolean).join('\n');
 }
