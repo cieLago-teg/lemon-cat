@@ -1,4 +1,4 @@
-export const PROMPT_VERSION = 'pet-styles-2026-09-09-v5';
+export const PROMPT_VERSION = 'pet-styles-2026-09-09-v6';
 
 export const DEFAULT_FEATURE_SYSTEM_PROMPT = `你是宠物外观记录助手，提取照片中主要宠物可见且可用于绘画的特征，供主人逐条删改。
 按以下顺序输出：物种、主毛色及分布、脸部和胸腹花纹、耳型与耳缘特征、可见眼色、毛长、体型、可见爪部和尾部特征。优先描述能区别同品种个体的具体色块位置。
@@ -43,6 +43,16 @@ export const STYLE_PROMPTS: StylePrompt[] = [
       "复古低密度二维像素宠物精灵，Q版大头小身，约32x32精灵的视觉密度，放大后的方形像素块清晰。调色板取自原宠物，约8至12色，优先分配给脸部配色、胸口和爪部标志色块。最近邻放大的硬边效果，最多一层阴影，不做渐变、抖动、抗锯齿或写实毛发。[宠物特征]"
   }
 ];
+
+export function styleNegativePrompt(style: string) {
+  const common = '多只宠物，多视图拼图，文字标注，人类，新增肢体，身体融合，画面裁切';
+  const specific: Record<string, string> = {
+    '简约可爱水墨风': '画外墨点，印章，题字，落地阴影，矢量粗描边，工笔写实',
+    '粗描边贴纸风': '重复主体，贴纸白色外框，三维高光，复杂背景，水墨飞白',
+    '复古像素游戏风': '抗锯齿，平滑轮廓，连续渐变，写实毛发，水墨纹理'
+  };
+  return [common, specific[style]].filter(Boolean).join('，');
+}
 
 function isValidStylePrompt(input: unknown): input is StylePrompt {
   if (!input || typeof input !== "object") {

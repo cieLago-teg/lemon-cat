@@ -32,3 +32,8 @@ CREATE TABLE IF NOT EXISTS usage_ledger (
 );
 CREATE TABLE IF NOT EXISTS worker_heartbeats (id uuid PRIMARY KEY, updated_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS rate_limits (key text PRIMARY KEY, count integer NOT NULL DEFAULT 0, expires_at timestamptz NOT NULL);
+CREATE TABLE IF NOT EXISTS image_feedback (
+  user_id uuid NOT NULL REFERENCES users(id), asset_id uuid NOT NULL REFERENCES assets(id),
+  job_id uuid NOT NULL REFERENCES generation_jobs(id), data jsonb NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(user_id,asset_id)
+);

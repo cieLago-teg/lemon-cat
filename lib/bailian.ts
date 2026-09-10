@@ -177,9 +177,9 @@ export async function extractPetFeatures(imageBase64WithMime: string, model: str
   throw new Error("特征提取结果为空");
 }
 
-export async function generatePetImage(prompt: string, source: string, model: string, seed?: number) {
+export async function generatePetImage(prompt: string, source: string, model: string, seed?: number, negativePrompt?: string) {
   if (!source) throw new Error('宠物图像编辑必须携带原图');
-  return runSyncMultimodalImageGeneration(prompt, model, '1024*1024', source, seed);
+  return runSyncMultimodalImageGeneration(prompt, model, '1024*1024', source, seed, negativePrompt);
 }
 
 export async function generateStyledImage(prompt: string, model: string) {
@@ -223,7 +223,7 @@ export async function generateStyledImage(prompt: string, model: string) {
   throw new Error('图片生成结果为空，提交结果需核对');
 }
 
-  async function runSyncMultimodalImageGeneration(prompt: string, model: string, size = "1024*1024", source?: string, seed?: number) {
+  async function runSyncMultimodalImageGeneration(prompt: string, model: string, size = "1024*1024", source?: string, seed?: number, negativePrompt?: string) {
     const { apiKey } = ensureAuth('dashscope');
     const url = `${getDashscopeRoot()}/api/v1/services/aigc/multimodal-generation/generation`;
     // 宠物编辑独立组装参数；显式关闭自动扩写，保留主人确认过的细节和画风。
@@ -245,7 +245,7 @@ export async function generateStyledImage(prompt: string, model: string) {
         },
         dispatcher: getDashscopeAgent(),
         signal: AbortSignal.timeout(120000),
-        body: JSON.stringify(source ? buildPetImageRequest(prompt, source, model, seed) : {
+        body: JSON.stringify(source ? buildPetImageRequest(prompt, source, model, seed, negativePrompt) : {
         model,
         input: {
           messages: [

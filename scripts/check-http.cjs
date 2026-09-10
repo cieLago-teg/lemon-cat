@@ -62,7 +62,11 @@ async function main() {
   const migrated = await api('POST','/api/pet/set-video',a.cookie,{videoUrl:legacyUrl});
   status(migrated,200);
   status(await api('POST','/api/pet/set-video',a.cookie,{videoUrl:'http://127.0.0.1:55432/private'}),400);
-  status(await api('POST','/api/extract',a.cookie,{imageBase64:png,mimeType:'image/png'},{'idempotency-key':crypto.randomUUID()}),402);
+  status(await api('POST','/api/extract',a.cookie,{imageBase64:png,mimeType:'image/png'},{'idempotency-key':crypto.randomUUID()}),400);
+  const decodable = (await require('sharp')({create:{width:64,height:64,channels:3,background:'#888888'}}).png().toBuffer()).toString('base64');
+  status(await api('POST','/api/extract',a.cookie,{imageBase64:decodable,mimeType:'image/png'},{'idempotency-key':crypto.randomUUID()}),402);
+  status(await api('POST','/api/image-feedback',b.cookie,{imageUrl:verifiedImage,ratings:{identity:4,style:4,anatomy:4,desktop:4},failures:[],liked:true}),404);
+  status(await api('POST','/api/image-feedback',a.cookie,{imageUrl:verifiedImage,ratings:{identity:4,style:4,anatomy:4,desktop:4},failures:[],liked:true}),404);
   status(await api('PATCH',`/api/archive/${archive.id}`,a.cookie,{petName:'cross-site'},{origin:'https://evil.invalid'}),403);
   status(await api('GET','/pet-videos/unauthorized-fixture.webm'),401);
   const jobId = crypto.randomUUID();

@@ -116,7 +116,7 @@ async function main() {
   }
   for (const model of models) for (const index of selected) {
     const style = prompts.STYLE_PROMPTS[index];
-    images.push({ variant: prompts.PROMPT_VERSION, model, style: style.style, prompt: prompts.buildPetImagePrompt(style.template, input) });
+    images.push({ variant: prompts.PROMPT_VERSION, model, style: style.style, negativePrompt: prompts.styleNegativePrompt(style.style), prompt: prompts.buildPetImagePrompt(style.template, input) });
   }
   const report = { createdAt: new Date().toISOString(), run: values.run, seed, extension, sourceSha256: crypto.createHash('sha256').update(bytes).digest('hex'), imageCalls, visionCalls: visions.length, images, vision: [] };
   const directory = path.resolve('data/evaluations', `model-lab-${crypto.randomUUID()}`);
@@ -136,7 +136,7 @@ async function main() {
     const started = Date.now();
     try {
       const client = item.variant.startsWith('baseline-') ? baselineProvider : provider;
-      const url = await client.generatePetImage(item.prompt, source, item.model, seed);
+      const url = await client.generatePetImage(item.prompt, source, item.model, seed, item.negativePrompt);
       const media = await downloadMedia(url, 10 * 1024 * 1024);
       if (!media.contentType.startsWith('image/')) throw new Error('供应商返回的结果不是图片');
       item.file = `image-${index}.png`;

@@ -45,7 +45,7 @@ export function normalizeFeatureTags(content: string) {
   return tags;
 }
 
-export function buildPetImageRequest(prompt: string, source: string, model: string, seed?: number) {
+export function buildPetImageRequest(prompt: string, source: string, model: string, seed?: number, negativePrompt?: string) {
   if (!(IMAGE_MODELS as readonly string[]).includes(model)) throw new Error(`未支持的宠物图像编辑模型：${model}，请检查 BAILIAN_PET_IMAGE_MODEL`);
   if (!source) throw new Error('宠物图像编辑必须携带原图');
   if (seed !== undefined && (!Number.isInteger(seed) || seed < 0 || seed > 2147483647)) throw new Error('图像 seed 必须在 0 至 2147483647 之间');
@@ -54,7 +54,7 @@ export function buildPetImageRequest(prompt: string, source: string, model: stri
     input: { messages: [{ role: 'user', content: [{ image: source }, { text: prompt }] }] },
     parameters: {
       size: '1024*1024', n: 1, prompt_extend: false, watermark: false,
-      negative_prompt: '多只宠物，多视图拼图，文字标注，人类，新增肢体，身体融合，画面裁切',
+      negative_prompt: negativePrompt || '多只宠物，多视图拼图，文字标注，人类，新增肢体，身体融合，画面裁切',
       ...(seed === undefined ? {} : { seed })
     }
   };

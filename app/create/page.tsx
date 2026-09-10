@@ -1,10 +1,13 @@
 "use client";
 
-import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useRef, useState, type ReactNode } from "react";
 import { pollAnimation } from "@/lib/pet/poll-animation.js";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { compressToBase64 } from "@/lib/image";
+import { STYLE_PROMPTS } from "@/lib/prompts";
+import { PhotoPreparation } from '@/app/components/PhotoPreparation';
+import { ImageFeedback } from '@/app/components/ImageFeedback';
 import { useDeployPet } from "@/app/components/useDeployPet";
 import { DeployProgressBar } from "@/app/components/DeployProgressBar";
 import { apiFetch } from "@/app/components/useSession";
@@ -15,6 +18,8 @@ type CloneResult = {
   imageUrl: string;
   videoUrl?: string;
   prompt: string;
+  candidate?: number;
+  quality?: { warnings: string[] };
 };
 
 type Stage = "UPLOAD" | "READ_PHOTO" | "ANALYZE_FEATURES" | "GENERATE_MORPH" | "PREP_COMPANION" | "RESULTS";
@@ -111,6 +116,11 @@ export default function HomePage() {
   const [selectedName, setSelectedName] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
   const [lastFile, setLastFile] = useState<File | null>(null);
+  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null);
+  const [photoWarnings, setPhotoWarnings] = useState<string[]>([]);
+  const [selectedStyles, setSelectedStyles] = useState(STYLE_PROMPTS.map((s) => s.style));
+  const [candidatesPerStyle, setCandidatesPerStyle] = useState(1);
+  const [generationWarning, setGenerationWarning] = useState('');
   const [error, setError] = useState("");
   const [errorStage, setErrorStage] = useState<"UPLOAD" | "EXTRACT" | "GENERATE">("UPLOAD");
   const stageStartedAtRef = useRef<number>(Date.now());
@@ -172,17 +182,14 @@ export default function HomePage() {
   const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setError("请上传图片文件");
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 20 * 1024 * 1024) {
+      setError("请选择 20MB 以内的 PNG/JPEG/WebP 照片");
       return;
     }
     setError("");
-    setLastFile(file);
     setSelectedName(file.name);
-    setPreviewUrl(URL.createObjectURL(file));
-    stageStartedAtRef.current = Date.now();
-    setStage("READ_PHOTO");
-    void extractFeatures(file);
+    setPendingPhoto(file);
+    event.target.value = '';
   };
 
   const extractFeatures = async (file: File) => {
@@ -238,6 +245,8 @@ export default function HomePage() {
 
   const startGeneration = async () => {
     setResults([]);
+    setSelectedResultIdx(null);
+    setGenerationWarning('');
     try {
       if (!lastFile) throw new Error('请先上传宠物原图');
       const original = await compressToBase64(lastFile);
@@ -252,12 +261,16 @@ export default function HomePage() {
           aiTags,
           customFeatures,
           petStory,
-          bgMode: "white"
+          bgMode: "white",
+          styles: selectedStyles,
+          candidatesPerStyle
         })
       });
       const data = await response.json();
       if (!response.ok || !data) throw new Error(data?.error ?? `生成失败 (${response.status})`);
+      if (!Array.isArray(data.results) || !data.results.length) throw new Error('没有可用的候选图，请到生成任务页核对');
       setResults(data.results);
+      setGenerationWarning(data.warning || '');
       setStage("PREP_COMPANION");
       stageStartedAtRef.current = Date.now();
       await new Promise((r) => setTimeout(r, 1500));
@@ -271,6 +284,7 @@ export default function HomePage() {
   };
 
   const resetAll = () => {
+    setPendingPhoto(null); setPhotoWarnings([]); setGenerationWarning('');
     setStage("UPLOAD");
     setPetName("");
     setPersonality("");
@@ -450,7 +464,12 @@ export default function HomePage() {
 
       <div className="flex-1 overflow-y-auto">
       {/* 4 阶段进度（生成中时替代主 UI） */}
-      {phaseStage ? (
+      {pendingPhoto ? <PhotoPreparation file={pendingPhoto} onCancel={() => setPendingPhoto(null)} onConfirm={(file, warnings) => {
+        setLastFile(file); setPhotoWarnings(warnings); setPendingPhoto(null);
+        if (previewUrl.startsWith('blob:')) URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(URL.createObjectURL(file)); setStage('READ_PHOTO');
+        stageStartedAtRef.current = Date.now(); void extractFeatures(file);
+      }} /> : phaseStage ? (
         <div className="mt-10">
           <StageProgress stage={phaseStage} startedAt={stageStartedAtRef.current} previewUrl={previewUrl} />
         </div>
@@ -460,7 +479,8 @@ export default function HomePage() {
           onRetry={() => {
             setError("");
             setShowFailPanel(false);
-            startGenerationFlow();
+            if (errorStage === 'EXTRACT' && lastFile) void extractFeatures(lastFile);
+            else { setStage('UPLOAD'); setShowProfile(true); setShowPreview(true); }
           }}
           onBack={() => {
             setError("");
@@ -479,6 +499,14 @@ export default function HomePage() {
           aiTags={aiTags}
           onBack={() => setShowPreview(false)}
           onConfirm={startGenerationFlow}
+          canConfirm={selectedStyles.length > 0}
+          options={<div className="mt-5 rounded-2xl bg-amber-50 p-4 text-sm text-[#5c2e10]">
+            <p className="mb-2 font-medium">这次想看哪些画风？</p>
+            {STYLE_PROMPTS.map(({ style }) => <label key={style} className="my-2 flex gap-2"><input type="checkbox" checked={selectedStyles.includes(style)} onChange={(e) => setSelectedStyles(e.target.checked ? [...selectedStyles, style] : selectedStyles.filter((s) => s !== style))} />{style}</label>)}
+            <label className="mt-3 block">每种画风的候选数 <select aria-label="每种画风的候选数" value={candidatesPerStyle} onChange={(e) => setCandidatesPerStyle(Number(e.target.value))} className="ml-2 rounded border bg-white p-1">{[1, 2, 3].map((n) => <option key={n} value={n}>{n} 张</option>)}</select></label>
+            <p className="mt-2">共 {selectedStyles.length * candidatesPerStyle} 张；预留 {4 * candidatesPerStyle} 内测点数（不是人民币）。更多候选会增加模型费用和等待时间，仍需你挑选。</p>
+            {photoWarnings.map((w) => <p key={w} className="mt-2 text-amber-800">照片提示：{w}</p>)}
+          </div>}
         />
       ) : stage === "UPLOAD" && showProfile ? (
         <ProfileEditor
@@ -523,6 +551,7 @@ export default function HomePage() {
           animState={animState}
           deployProgress={deployProgress}
           usedCachedVideo={usedCachedVideo}
+          generationWarning={generationWarning}
         />
       )}
 
@@ -869,6 +898,7 @@ function ProfileEditor(props: {
             <input
               type="text"
               value={props.personality}
+              maxLength={40}
               onChange={(e) => props.setPersonality(e.target.value)}
               placeholder="例如：机警、沉稳、温和、黏人"
               className="mt-2 w-full border-0 border-b border-amber-200 bg-transparent py-2 text-base text-[#5c2e10] placeholder:text-[#5c2e10]/35 focus:border-amber-600 focus:outline-none"
@@ -880,8 +910,9 @@ function ProfileEditor(props: {
             <input
               type="text"
               value={props.customFeatures}
+              maxLength={120}
               onChange={(e) => props.setCustomFeatures(e.target.value)}
-              placeholder="例如：右耳有缺口、尾巴末端偏深色"
+              placeholder="120 字内，例如：右耳有缺口、尾巴末端偏深色"
               className="mt-2 w-full border-0 border-b border-amber-200 bg-transparent py-2 text-base text-[#5c2e10] placeholder:text-[#5c2e10]/35 focus:border-amber-600 focus:outline-none"
             />
           </div>
@@ -950,7 +981,7 @@ function ProfilePreview({
   profile,
   aiTags,
   onBack,
-  onConfirm
+  onConfirm, options, canConfirm
 }: {
   previewUrl: string | null;
   petName: string;
@@ -961,6 +992,8 @@ function ProfilePreview({
   aiTags: string[];
   onBack: () => void;
   onConfirm: () => void;
+  options: ReactNode;
+  canConfirm: boolean;
 }) {
   return (
     <div className="mt-6 grid grid-cols-1 gap-12 lg:grid-cols-[1fr_1.1fr] lg:items-start">
@@ -1026,10 +1059,12 @@ function ProfilePreview({
           )}
         </div>
 
+        {options}
         <div className="mt-8 flex flex-wrap items-center gap-3">
           <button
             type="button"
             onClick={onConfirm}
+            disabled={!canConfirm}
             className="rounded-full bg-amber-900 px-7 py-3 text-sm font-medium text-amber-50 shadow-lg shadow-amber-900/10 hover:bg-amber-800"
           >
             确认，让它诞生 ✨
@@ -1063,7 +1098,7 @@ function ResultsStage({
   proxiedImage,
   animState,
   deployProgress,
-  usedCachedVideo
+  usedCachedVideo, generationWarning
 }: {
   results: CloneResult[];
   selectedResultIdx: number | null;
@@ -1078,6 +1113,7 @@ function ResultsStage({
   animState: { stage: string; videoUrl: string | null; taskId: string | null; percent?: number; message?: string };
   deployProgress: { stage: "idle" | "animating" | "deploying" | "done" | "error"; percent: number; message: string; fraction: number };
   usedCachedVideo: boolean;
+  generationWarning: string;
 }) {
   const isAnimating = animState.stage !== "idle" && animState.stage !== "done" && animState.videoUrl === null;
   return (
@@ -1128,12 +1164,13 @@ function ResultsStage({
       </div>
 
       <div>
+        {generationWarning && <p role="alert" className="mb-4 rounded-xl bg-amber-100 p-3 text-sm">{generationWarning} <Link href="/tasks" className="underline">查看任务</Link></p>}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {results.map((item, idx) => {
             const selected = selectedResultIdx === idx;
             return (
               <button
-                key={item.style}
+                key={`${item.imageUrl}-${idx}`}
                 type="button"
                 onClick={() => setSelectedResultIdx(idx)}
                 className={
@@ -1143,12 +1180,17 @@ function ResultsStage({
               >
                 <img src={proxiedImage(item.imageUrl)} alt={item.style} className="aspect-square w-full object-cover" />
                 <div className="px-2 py-1.5 text-[11px] text-[#5c2e10]">
-                  {item.style} · {petName}
+                  {item.style} · 候选 {item.candidate || 1} · {petName}
                 </div>
               </button>
             );
           })}
         </div>
+
+        {selectedResultIdx !== null && results[selectedResultIdx] && <div className="mt-4">
+          {results[selectedResultIdx].quality?.warnings.map((w) => <p key={w} className="my-1 text-sm text-amber-800">技术提示（可能误判）：{w}</p>)}
+          <ImageFeedback key={results[selectedResultIdx].imageUrl} imageUrl={results[selectedResultIdx].imageUrl} />
+        </div>}
 
         <div className="mt-8 flex flex-col gap-3">
           <button

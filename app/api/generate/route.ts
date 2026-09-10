@@ -3,6 +3,10 @@ import { route } from '@/lib/server/http.cjs';
 import { requireUser } from '@/lib/server/guard';
 import { enqueue, publicJob } from '@/lib/server/jobs.cjs';
 import { putAsset } from '@/lib/server/assets.cjs';
+import { inspectImage } from '@/lib/server/image-inspection.cjs';
+import { generationOptions, validateFeatureInput } from '@/lib/generation-options';
+import { buildPetImagePrompt, PROMPT_VERSION, styleNegativePrompt } from '@/lib/prompts';
+import { resolveModels } from '@/lib/model-config';
 export const POST = route('POST', async (request, _context, { requestId }) => {
   const user = await requireUser(request);
   const body = await request.json();
@@ -13,9 +17,15 @@ export const POST = route('POST', async (request, _context, { requestId }) => {
   if (typeof body.imageBase64 !== 'string' || !/^[A-Za-z0-9+/=]+$/.test(body.imageBase64) || body.imageBase64.length > 7 * 1024 * 1024 || !['image/png','image/jpeg','image/webp'].includes(body.mimeType)) {
     return NextResponse.json({ error: '需要有效的宠物原图，不能仅凭文字生成定制形象' }, { status: 400 });
   }
-  const sourceImageUrl = await putAsset(user.id, Buffer.from(body.imageBase64, 'base64'), body.mimeType);
-  const input = { ...body };
-  delete input.imageBase64;
-  const job = await enqueue(user.id, 'generate', request.headers.get('idempotency-key') || '', { ...input, sourceImageUrl }, requestId);
+  let options;
+  try { options = generationOptions(body); validateFeatureInput(body); }
+  catch (err) { return NextResponse.json({ error: err instanceof Error ? err.message : '生成参数无效' }, { status: 400 }); }
+  const bytes = Buffer.from(body.imageBase64, 'base64');
+  const inputQuality = await inspectImage(bytes, body.mimeType);
+  const sourceImageUrl = await putAsset(user.id, bytes, body.mimeType);
+  const input = { aiTags: body.aiTags, customFeatures: body.customFeatures || '', petVibe: body.petVibe || '', bgMode: 'white', styles: options.styles.map((s) => s.style), candidatesPerStyle: options.candidatesPerStyle, sourceImageUrl, inputQuality };
+  // 入队时冻结实际提示词和模型；随机种子在幂等检查之后产生。
+  const plan = options.styles.flatMap(({ style, template }) => Array.from({ length: options.candidatesPerStyle }, (_, index) => ({ style, candidate: index + 1, prompt: buildPetImagePrompt(template, input), negativePrompt: styleNegativePrompt(style), model: resolveModels().image, promptVersion: PROMPT_VERSION })));
+  const job = await enqueue(user.id, 'generate', request.headers.get('idempotency-key') || '', { ...input, plan }, requestId);
   return NextResponse.json({ taskId: job.id, task: publicJob(job) }, { status: 202 });
 });

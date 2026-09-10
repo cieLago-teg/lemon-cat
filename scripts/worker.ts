@@ -8,8 +8,9 @@ import { fetch as upstreamFetch } from 'undici';
 
 // 编译输出仍使用工作目录中的 CJS 模块，避免复制原生 ONNX/FFmpeg 依赖。
 const root = process.cwd();
+const { inspectImage } = require(path.join(root, 'lib/server/image-inspection.cjs'));
 const { database, close } = require(path.join(root, 'lib/server/db.cjs'));
-const { runOne } = require(path.join(root, 'lib/server/jobs.cjs'));
+const { runOne, checkpointImages } = require(path.join(root, 'lib/server/jobs.cjs'));
 const { logger } = require(path.join(root, 'lib/server/logger.cjs'));
 const { config } = require(path.join(root, 'lib/server/config.cjs'));
 const { putAsset, providerAssetUrl, ownedAsset, readAsset } = require(path.join(root, 'lib/server/assets.cjs'));
@@ -18,7 +19,8 @@ const { resolveDashscopeVideoBaseUrl } = require(path.join(root, 'lib/pet/dashsc
 const { buildIdlePrompt } = require(path.join(root, 'lib/pet/animation-prompt.js'));
 const { mattingVideo } = require(path.join(root, 'lib/pet/rvm-matting.js'));
 type ResultImage = { style: string; imageUrl: string; prompt: string };
-type JobInput = { sourceImageUrl?: string; imageUrl: string; imageBase64: string; mimeType: string; featureSystemPrompt?: string; petVibe?: string; aiTags?: string[]; customFeatures?: string; stylePrompts?: Parameters<typeof resolveStylePrompts>[0]; bgMode?: string; prompt?: string; style?: string };
+type ImagePlan = { style: string; candidate: number; prompt: string; model: string; promptVersion: string; seed?: number; negativePrompt?: string };
+type JobInput = { plan?: ImagePlan[]; sourceImageUrl?: string; imageUrl: string; imageBase64: string; mimeType: string; featureSystemPrompt?: string; petVibe?: string; aiTags?: string[]; customFeatures?: string; stylePrompts?: Parameters<typeof resolveStylePrompts>[0]; bgMode?: string; prompt?: string; style?: string };
 type Job = { id: string; user_id: string; kind: string; input: JobInput; result: { results: ResultImage[]; videoUrl: string }; upstream_id: string };
 type WanPayload = { output?: { task_id?: string; task_status?: string; video_url?: string; results?: { video_url?: string } | Array<{ video_url?: string }> } };
 
@@ -69,13 +71,16 @@ export const adapter = {
     if (job.kind === 'generate') {
       const source = await imageData(job.user_id, body.sourceImageUrl || '');
       const results = [];
-      for (const { style, template } of resolveStylePrompts(body.stylePrompts)) {
-        const prompt = buildPetImagePrompt(template, body);
-        logger.info({ jobId: job.id, model: models.image, style, promptVersion: PROMPT_VERSION, promptChars: prompt.length }, 'pet image submission');
-        const generated = await generatePetImage(prompt, source, models.image);
+      const plan = body.plan || resolveStylePrompts(body.stylePrompts).map(({ style, template }) => ({ style, candidate: 1, prompt: buildPetImagePrompt(template, body), model: models.image, promptVersion: PROMPT_VERSION }));
+      for (const item of plan as ImagePlan[]) {
+        const { style, prompt, model, candidate, seed, negativePrompt, promptVersion } = item;
+        logger.info({ jobId: job.id, model, style, candidate, seed, promptVersion, promptChars: prompt.length }, 'pet image submission');
+        const generated = await generatePetImage(prompt, source, model, seed, negativePrompt);
         const { bytes, contentType } = await downloadMedia(generated, 5 * 1024 * 1024);
+        const quality = await inspectImage(bytes, contentType, true);
         const imageUrl = await putAsset(job.user_id, bytes, contentType);
-        results.push({ style, imageUrl, prompt, model: models.image, promptVersion: PROMPT_VERSION });
+        results.push({ style, imageUrl, prompt, model, candidate, seed, negativePrompt, promptVersion, quality, taskId: job.id });
+        await checkpointImages(job, { results, expected: plan.length });
       }
       return { result: { results } };
     }

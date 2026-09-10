@@ -43,7 +43,7 @@ export default function TasksPage() {
       <h2 className="font-bold">{{extract:'照片识别',generate:'形象生成',animate:'动态生成'}[task.kind] || task.kind} · {task.message}</h2>
       <p className="my-2 break-all text-xs opacity-70">{task.taskId}</p>
       {task.error && <p className="text-sm text-red-800">{task.error}</p>}
-      {task.state === 'success' && <>
+      {(task.state === 'success' || Boolean(task.result?.results?.length)) && <>
         {task.result?.tags && <p>{task.result.tags.join('、')}</p>}
         {task.result?.results && <><div className="grid grid-cols-2 gap-4 sm:grid-cols-4">{task.result.results.map((result,index)=><img key={index} src={result.imageUrl} alt={result.style} className="rounded-xl" />)}</div><button disabled={Boolean(saving)} onClick={()=>void save(task)} className="mt-4 rounded-full bg-[#f8a8a8] px-5 py-2">{saving === task.taskId ? '正在保存…' : '恢复并保存宠物档案'}</button></>}
         {task.videoUrl && <video controls loop muted src={task.videoUrl} className="mt-3 max-h-64 rounded-xl" />}
