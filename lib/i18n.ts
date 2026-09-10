@@ -56,6 +56,36 @@ export const messages = {
   crashTitle: ['页面开小差了', 'Something went wrong'],
   crashHint: ['界面遇到意外错误。请重试；未提交的内容可能需要重新填写。', 'The page encountered an error. Try again; you may need to re-enter unsaved changes.'],
   retry: ['重新加载界面', 'Try again'],
+  uploadStep: ['上传照片', 'Upload photo'], profileStep: ['完善档案', 'Pet profile'],
+  styleStep: ['选择形象', 'Choose a style'], desktopStep: ['召唤到桌面', 'Bring to desktop'],
+  heroLead: ['让它，', 'A little version of them,'], heroEnd: ['陪在你身边', 'right by your side'],
+  heroHint: ['上传一张照片，为它建立数字档案，让它陪在你的桌面上。', 'Upload a photo to create a digital pet that keeps you company on your desktop.'],
+  choosePhoto: ['选择一张照片', 'Choose a photo'], changePhoto: ['重新选择照片', 'Choose another photo'],
+  selectedPhoto: ['已选', 'Selected'], photoTips: ['如何选择一张好的宠物照片？', 'What makes a good pet photo?'],
+  tipLight: ['自然光线下拍摄，避免闪光灯惊吓宠物', 'Use natural light and avoid startling your pet with a flash.'],
+  tipRelax: ['让宠物保持舒适放松的状态，清晰展示五官轮廓', 'Keep your pet comfortable, with their face clearly visible.'],
+  tipFace: ['正脸或微侧脸最佳，能清晰看到眼睛和耳朵特征', 'A front or slight side view works best. Keep eyes and ears visible.'],
+  tipBackground: ['背景简洁，突出宠物主体，避免杂物干扰', 'Choose a simple background without distracting clutter.'],
+  invalidPhoto: ['请选择 20MB 以内的 PNG/JPEG/WebP 照片', 'Choose a PNG, JPEG or WebP photo no larger than 20 MB.'],
+  photoTitle: ['先确认照片里的主角', 'First, choose the star of the photo'],
+  photoCropHint: ['拖动框选一只宠物，留出耳朵、爪子和尾巴。单只且完整的照片可以直接使用整图。', 'Drag to crop around one pet, keeping ears, paws and tail in view. Use the full photo if it already shows one complete pet.'],
+  photoCropAlt: ['拖动框选目标宠物', 'Drag to crop around your pet'],
+  photoRotate: ['旋转 90°', 'Rotate 90°'], photoFull: ['使用整图', 'Use full photo'],
+  photoExposure: ['亮度微调（会影响毛色，默认不调整）', 'Brightness (may affect coat color; unchanged by default)'],
+  photoActual: ['实际用于识别和生成的照片', 'Photo used for recognition and generation'],
+  photoPreparedAlt: ['处理后的宠物照片', 'Prepared pet photo'],
+  photoLimit: ['方向和尺寸会自动规范化。无法从被遮挡的位置恢复真实花纹；多宠物请手动框选。这里的检查不会判断宠物身份。', 'Orientation and size are normalized automatically. Hidden markings cannot be recovered. Crop manually if there are several pets. These checks do not identify your pet.'],
+  photoWarning: ['提示', 'Note'],
+  photoConfirmCheck: ['我已确认只有目标宠物，关键部位清楚可见', 'Only my chosen pet is in the crop, with key features clearly visible.'],
+  photoConfirm: ['确认照片，开始识别', 'Confirm photo and continue'],
+  photoReadFailed: ['图片读取失败', 'The photo could not be read. Try another image.'],
+  photoCompressFailed: ['图片压缩失败', 'The photo could not be processed. Try another image.'],
+  photoBrowserFailed: ['浏览器无法处理照片', 'This browser could not process the photo.'],
+  photoCropSmall: ['框选区域太小，请扩大到完整宠物', 'The crop is too small. Include the whole pet.'],
+  photoLowRes: ['分辨率偏低，建议选择更清晰的原图', 'Low resolution. A sharper original photo is recommended.'],
+  photoDark: ['画面整体较暗，请确认毛色与眼睛细节可见（黑色宠物可能误触发）', 'The photo looks dark. Check coat and eye detail; dark-coated pets may trigger this warning unnecessarily.'],
+  photoBright: ['画面偏亮或主体较小，请确认白色毛发细节没有丢失', 'The photo looks bright or the pet looks small. Check that white fur details are visible.'],
+  photoBlur: ['画面细节较少，可能模糊或主体过小，请肉眼确认', 'Few details were detected. Check for blur or a very small subject.'],
 } as const;
 
 export type MessageKey = keyof typeof messages;
@@ -68,4 +98,12 @@ export function authError(locale: Locale, status: number, serverMessage?: string
   const known: MessageKey[] = ['credentialsFailed', 'inviteFailed', 'exists', 'rateLimited', 'passwordRange'];
   const key = known.find((candidate) => messages[candidate][0] === serverMessage);
   return key ? translate(locale, key) : `${translate(locale, 'authFailed')} (${status})`;
+}
+
+// 只在照片处理提示处调用，不用于宠物名字、标签或其他用户内容。
+export function photoMessage(locale: Locale, message: string): string {
+  const keys: MessageKey[] = ['invalidPhoto', 'photoReadFailed', 'photoCompressFailed', 'photoBrowserFailed', 'photoCropSmall', 'photoLowRes', 'photoDark', 'photoBright', 'photoBlur'];
+  const key = keys.find((candidate) => messages[candidate][0] === message);
+  if (message === '浏览器无法读取照片') return translate(locale, 'photoBrowserFailed');
+  return key ? translate(locale, key) : message;
 }

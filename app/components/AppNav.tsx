@@ -56,7 +56,7 @@ export default function AppNav() {
 
   return (
     <header className="sticky top-3 z-30 px-4">
-      <div className="mx-auto w-fit max-w-[min(92vw,34rem)] rounded-[999px] border border-white/45 bg-white/28 px-5 py-3 shadow-[0_18px_45px_-24px_rgba(92,46,16,0.45),0_6px_18px_rgba(255,255,255,0.22)_inset] ring-1 ring-black/5 backdrop-blur-xl supports-[backdrop-filter]:bg-white/22 sm:px-6 sm:py-3.5">
+      <div className="mx-auto w-fit max-w-[min(92vw,48rem)] rounded-[999px] border border-white/45 bg-white/28 px-5 py-3 shadow-[0_18px_45px_-24px_rgba(92,46,16,0.45),0_6px_18px_rgba(255,255,255,0.22)_inset] ring-1 ring-black/5 backdrop-blur-xl supports-[backdrop-filter]:bg-white/22 sm:px-6 sm:py-3.5">
         <nav className="flex flex-wrap items-center justify-center gap-1.5">
           {items.map((item) => {
             const active = item.match(pathname);

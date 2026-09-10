@@ -11,6 +11,8 @@ import { ImageFeedback } from '@/app/components/ImageFeedback';
 import { useDeployPet } from "@/app/components/useDeployPet";
 import { DeployProgressBar } from "@/app/components/DeployProgressBar";
 import { apiFetch } from "@/app/components/useSession";
+import { useLocale } from '@/app/components/LocaleProvider';
+import { photoMessage, type MessageKey } from '@/lib/i18n';
 
 // 2026-06-09 商业化重构：消费级文案（去除"克隆 / MVP / GIF"等开发语言）
 type CloneResult = {
@@ -34,11 +36,11 @@ const stageToStep: Record<Stage, StepIndex> = {
   RESULTS: 4
 };
 
-const STEP_LABELS: { idx: StepIndex; title: string; caption: string }[] = [
-  { idx: 1, title: "上传照片", caption: "拖入一张宠物照片" },
-  { idx: 2, title: "完善档案", caption: "确认它的数字档案" },
-  { idx: 3, title: "选择形象", caption: "挑一张它最像的样子" },
-  { idx: 4, title: "召唤到桌面", caption: "陪伴开始" }
+const STEP_LABELS: { idx: StepIndex; title: MessageKey }[] = [
+  { idx: 1, title: 'uploadStep' },
+  { idx: 2, title: 'profileStep' },
+  { idx: 3, title: 'styleStep' },
+  { idx: 4, title: 'desktopStep' }
 ];
 
 // 阶段化进度文案
@@ -67,11 +69,11 @@ const STAGE_META: Record<
 const proxiedImage = (url: string) => `/api/image-proxy?url=${encodeURIComponent(url)}`;
 
 // 上传建议（折叠起来）
-const UPLOAD_TIPS = [
-  { emoji: "🌅", text: "自然光线下拍摄，避免闪光灯惊吓宠物" },
-  { emoji: "🐾", text: "让宠物保持舒适放松的状态，清晰展示五官轮廓" },
-  { emoji: "🎯", text: "正脸或微侧脸最佳，能清晰看到眼睛和耳朵特征" },
-  { emoji: "🌿", text: "背景简洁，突出宠物主体，避免杂物干扰" }
+const UPLOAD_TIPS: { emoji: string; text: MessageKey }[] = [
+  { emoji: "🌅", text: 'tipLight' },
+  { emoji: "🐾", text: 'tipRelax' },
+  { emoji: "🎯", text: 'tipFace' },
+  { emoji: "🌿", text: 'tipBackground' }
 ];
 
 // 失败温和分类
@@ -576,6 +578,7 @@ export default function HomePage() {
 // 极简进度条：顶部一条线 + 4 圆点（不抢戏）
 // ============================================================================
 function StepRibbon({ current }: { current: StepIndex }) {
+  const { t } = useLocale();
   return (
     <div className="mb-8 flex items-center justify-between">
       <ol className="flex flex-1 items-center gap-3 sm:gap-4">
@@ -607,7 +610,7 @@ function StepRibbon({ current }: { current: StepIndex }) {
                       : "text-[#5c2e10]/60")
                 }
               >
-                {s.title}
+                {t(s.title)}
               </span>
               {i < STEP_LABELS.length - 1 && (
                 <span
@@ -643,48 +646,50 @@ function UploadHero({
   error: string;
   previewUrl: string | null;
 }) {
+  const { locale, t } = useLocale();
   return (
     <div className="mt-8">
       {/* 标题 + 上传 + 折叠建议 */}
       <div>
         <h1 className="mt-2 text-4xl font-normal leading-tight text-[#5c2e10] sm:text-5xl">
-          让它，<br className="hidden sm:block" />
-          <span>永远陪着你</span>
+          {t('heroLead')}<br className="hidden sm:block" />
+          <span>{t('heroEnd')}</span>
         </h1>
         <p className="mt-5 max-w-md text-base leading-relaxed text-[#5c2e10]/80">
-          上传一张照片，我们会为它建立一份温柔的赛博档案。它将安静地坐在你桌面的角落。
+          {t('heroHint')}
         </p>
 
         <label className="mt-8 inline-flex cursor-pointer items-center gap-2 rounded-full bg-amber-900 px-7 py-3.5 text-sm font-medium text-amber-50 shadow-lg shadow-amber-900/10 transition hover:bg-amber-800">
-          <input type="file" accept="image/*" className="hidden" onChange={onFileChange} />
+          <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={onFileChange} />
           <span aria-hidden>📷</span>
-          {selectedName ? "重新选择照片" : "选择一张照片"}
+          {t(selectedName ? 'changePhoto' : 'choosePhoto')}
         </label>
         {selectedName && (
           <p className="mt-3 text-xs text-[#5c2e10]/80">
-            已选：<span className="font-medium text-[#5c2e10]">{selectedName}</span>
+            {t('selectedPhoto')}: <span className="font-medium text-[#5c2e10]">{selectedName}</span>
           </p>
         )}
-        {error && <p className="mt-3 text-xs text-rose-700">{error}</p>}
+        {error && <p role="alert" className="mt-3 text-xs text-rose-700">{photoMessage(locale, error)}</p>}
 
         {/* 上传建议折叠 */}
         <div className="mt-8 max-w-md">
           <button
             type="button"
             onClick={() => setShowTips(!showTips)}
+            aria-expanded={showTips}
             className="flex items-center gap-1.5 text-xs text-[#5c2e10]/80 hover:text-[#5c2e10]"
           >
             <span className={"inline-block transition-transform " + (showTips ? "rotate-90" : "")} aria-hidden>
               ›
             </span>
-            如何选择一张好的宠物照片？
+            {t('photoTips')}
           </button>
           {showTips && (
             <ul className="mt-3 space-y-1.5 text-xs text-[#5c2e10]/80">
-              {UPLOAD_TIPS.map((t) => (
-                <li key={t.text} className="flex items-start gap-2">
-                  <span aria-hidden>{t.emoji}</span>
-                  <span>{t.text}</span>
+              {UPLOAD_TIPS.map((tip) => (
+                <li key={tip.text} className="flex items-start gap-2">
+                  <span aria-hidden>{tip.emoji}</span>
+                  <span>{t(tip.text)}</span>
                 </li>
               ))}
             </ul>
