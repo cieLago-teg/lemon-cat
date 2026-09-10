@@ -1,18 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLocale } from './LocaleProvider';
+import type { MessageKey } from '@/lib/i18n';
 
-type Notice = { id: number; text: string };
+type Notice = { id: number; text: MessageKey };
 
 // Attaches global window.onerror / unhandledrejection listeners so runtime and
 // network failures surface a visible, dismissible notice instead of failing
 // silently. Original error objects are kept in the console for diagnosis.
 export default function ClientErrorWatcher() {
+  const { t } = useLocale();
   const [notices, setNotices] = useState<Notice[]>([]);
 
   useEffect(() => {
     let seq = 0;
-    const push = (text: string) => {
+    const push = (text: MessageKey) => {
       seq += 1;
       const id = Date.now() + seq;
       setNotices((prev) => [...prev.slice(-2), { id, text }]);
@@ -23,15 +26,15 @@ export default function ClientErrorWatcher() {
 
     const onError = (event: ErrorEvent) => {
       console.error("[window.onerror]", event.error || event.message, event.filename, event.lineno);
-      push("检测到运行错误，若界面异常请刷新重试。");
+      push('runtimeFailed');
     };
     const onRejection = (event: PromiseRejectionEvent) => {
       const reason = event.reason;
       console.error("[unhandledrejection]", reason);
       const text =
         reason instanceof TypeError && /fetch|network|load failed/i.test(String(reason.message))
-          ? "网络连接失败，请检查网络后重试。"
-          : "有操作未完成，请稍后重试。";
+          ? 'networkFailed'
+          : 'incomplete';
       push(text);
     };
 
@@ -51,7 +54,7 @@ export default function ClientErrorWatcher() {
           key={n.id}
           className="pointer-events-auto rounded-2xl border border-rose-200/70 bg-rose-50/95 px-4 py-2.5 text-sm text-rose-800 shadow-[0_12px_30px_-18px_rgba(120,20,40,0.5)] backdrop-blur"
         >
-          {n.text}
+          {t(n.text)}
         </div>
       ))}
     </div>

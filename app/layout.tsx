@@ -3,15 +3,23 @@ import "./globals.css";
 import AppNav from "./components/AppNav";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ClientErrorWatcher from "./components/ClientErrorWatcher";
+import { cookies, headers } from 'next/headers';
+import { LocaleProvider } from './components/LocaleProvider';
+import { LOCALE_COOKIE, resolveLocale, translate } from '@/lib/i18n';
 
-export const metadata: Metadata = {
-  title: "数字宠物档案馆",
-  description: "让你的宠物成为永远陪伴你的桌面小伙伴"
-};
+async function requestLocale() {
+  return resolveLocale((await cookies()).get(LOCALE_COOKIE)?.value, (await headers()).get('accept-language') || '');
+}
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await requestLocale();
+  return { title: translate(locale, 'title'), description: translate(locale, 'description') };
+}
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await requestLocale();
   return (
-    <html lang="zh-CN" data-theme="light" suppressHydrationWarning>
+    <html lang={locale === 'zh' ? 'zh-CN' : 'en'} data-theme="light">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -21,11 +29,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="bg-transparent text-slate-900 font-rounded">
+        <LocaleProvider initialLocale={locale}>
         <ErrorBoundary>
           <AppNav />
           {children}
         </ErrorBoundary>
         <ClientErrorWatcher />
+        </LocaleProvider>
       </body>
     </html>
   );

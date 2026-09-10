@@ -4,25 +4,27 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "@/app/components/useSession";
 import { useEffect, useState } from 'react';
+import { LanguageSwitcher, useLocale } from './LocaleProvider';
+import type { MessageKey } from '@/lib/i18n';
 
 type NavItem = {
   href: string;
-  label: string;
+  label: MessageKey;
   match: (pathname: string) => boolean;
 };
 
 const items: NavItem[] = [
   {
     href: "/create",
-    label: "开始创建",
+    label: "create",
     match: (p) => p === "/create"
   },
   {
     href: "/pets",
-    label: "我的宠物",
+    label: "pets",
     match: (p) => p === "/pets"
   },
-  { href: '/tasks', label: '生成任务', match: (p) => p === '/tasks' }
+  { href: '/tasks', label: 'tasks', match: (p) => p === '/tasks' }
 ];
 
 function nameOf(email: string) {
@@ -31,6 +33,7 @@ function nameOf(email: string) {
 }
 
 export default function AppNav() {
+  const { t } = useLocale();
   const pathname = usePathname() || "/";
   const { user, loading } = useSession();
   const [logoutError,setLogoutError] = useState('');
@@ -43,11 +46,11 @@ export default function AppNav() {
   const logout = async () => {
     try {
       const response = await fetch("/api/auth/logout", { method: "POST", headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      if (!response.ok) throw new Error(`退出失败 (${response.status})`);
+      if (!response.ok) throw new Error(`${t('logoutFailed')} (${response.status})`);
       window.location.href = "/login";
     } catch (err) {
       console.error("logout failed", err);
-      setLogoutError(err instanceof Error ? err.message : '退出失败，请重试');
+      setLogoutError(err instanceof Error ? err.message : t('logoutFailed'));
     }
   };
 
@@ -69,7 +72,7 @@ export default function AppNav() {
                     : "text-amber-700/85 hover:bg-white/16 hover:text-amber-900")
                 }
               >
-                {item.label}
+                {t(item.label)}
               </Link>
             );
           })}
@@ -84,7 +87,7 @@ export default function AppNav() {
                   : "text-amber-700/85 hover:bg-white/16 hover:text-amber-900")
               }
             >
-              开发后台
+              {t('developer')}
             </Link>
           ) : null}
 
@@ -105,7 +108,7 @@ export default function AppNav() {
                     onClick={() => void logout()}
                     className="rounded-full px-2.5 py-1 text-xs font-bold text-amber-700/85 transition-colors hover:bg-white/16 hover:text-amber-900"
                   >
-                    退出
+                    {t('logout')}
                   </button>
                 </span>
               ) : (
@@ -113,11 +116,12 @@ export default function AppNav() {
                   href="/login"
                   className="rounded-full bg-white/34 px-4 py-1.5 font-handwriting font-bold text-base text-amber-950 shadow-[0_2px_10px_rgba(255,255,255,0.18)_inset] transition-colors hover:bg-white/45"
                 >
-                  登录
+                  {t('login')}
                 </Link>
               )}
             </>
           ) : null}
+          <LanguageSwitcher />
         </nav>
       </div>
     </header>

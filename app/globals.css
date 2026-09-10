@@ -25,6 +25,9 @@
   .font-handwriting-en {
     font-family: var(--font-handwriting-en);
   }
+  html[lang="en"] .font-handwriting {
+    font-family: var(--font-handwriting-en);
+  }
 }
 
 @layer utilities {
