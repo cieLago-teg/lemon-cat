@@ -92,7 +92,7 @@ export const messages = {
   publicJoinHint: ['先验证邮箱，再设置密码。每天最多 3 次创建，受全站预算限制。', 'Verify your email, then set a password. Up to 3 creations per day, subject to the shared budget.'],
   mailSent: ['如果该邮箱可用于此操作，我们已发送链接。请检查收件箱和垃圾邮件；30 分钟内有效。', 'If this email is eligible, we have sent a link. Check your inbox and spam folder; it expires in 30 minutes.'],
   sendLink: ['发送验证链接', 'Send verification link'],
-  forgotPassword: ['忘记密码 / 重新发送验证', 'Forgot password / resend verification'],
+  forgotPassword: ['忘记密码', 'Forgot password'],
   sendReset: ['发送密码重置链接', 'Send password reset link'],
   confirmAccount: ['验证邮箱 / 设置密码', 'Verify email / set password'],
   confirmAccountHint: ['请通过邮件里的链接打开此页，设置仅属于你的密码。', 'Open this page from your email link and choose your own password.'],
