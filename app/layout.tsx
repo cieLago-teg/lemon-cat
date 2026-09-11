@@ -13,7 +13,7 @@ async function requestLocale() {
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await requestLocale();
-  return { title: translate(locale, 'title'), description: translate(locale, 'description') };
+  return { title: translate(locale, 'title'), description: translate(locale, 'description'), referrer: 'no-referrer' };
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

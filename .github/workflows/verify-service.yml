@@ -1,0 +1,43 @@
+name: Pawnear service verification
+on:
+  push:
+    branches: [main]
+    paths: ['app/**', 'lib/**', 'scripts/**', 'package*.json', 'next.config.*', 'tsconfig*.json', '.github/workflows/verify-service.yml']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: service-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17.11-alpine
+        env:
+          POSTGRES_USER: pawnear
+          POSTGRES_PASSWORD: ephemeral-ci-only
+          POSTGRES_DB: pawnear_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U pawnear -d pawnear_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://pawnear:ephemeral-ci-only@127.0.0.1:5432/pawnear_test
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run lint
+      - run: npm run check:public
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high

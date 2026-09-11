@@ -11,6 +11,7 @@ const root = process.cwd();
 const { inspectImage } = require(path.join(root, 'lib/server/image-inspection.cjs'));
 const { database, close } = require(path.join(root, 'lib/server/db.cjs'));
 const { runOne, checkpointImages } = require(path.join(root, 'lib/server/jobs.cjs'));
+const { reserveCall } = require(path.join(root, 'lib/server/ai-budget.cjs'));
 const { logger } = require(path.join(root, 'lib/server/logger.cjs'));
 const { config } = require(path.join(root, 'lib/server/config.cjs'));
 const { putAsset, providerAssetUrl, ownedAsset, readAsset } = require(path.join(root, 'lib/server/assets.cjs'));
@@ -65,6 +66,7 @@ export const adapter = {
     const body = job.input;
     const models = resolveModels();
     if (job.kind === 'extract') {
+      await reserveCall(job, 'vision', `${process.env.BAILIAN_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1'}|${models.vision}|vision-5MB-output768`);
       const petFeatures = await extractPetFeatures(`data:${body.mimeType};base64,${body.imageBase64}`, models.vision, resolveFeatureSystemPrompt(body.featureSystemPrompt));
       return { result: { petFeatures, tags: normalizeFeatureTags(petFeatures), model: models.vision, promptVersion: PROMPT_VERSION } };
     }
@@ -75,6 +77,7 @@ export const adapter = {
       for (const item of plan as ImagePlan[]) {
         const { style, prompt, model, candidate, seed, negativePrompt, promptVersion } = item;
         logger.info({ jobId: job.id, model, style, candidate, seed, promptVersion, promptChars: prompt.length }, 'pet image submission');
+        await reserveCall(job, `image-${results.length}`, `${process.env.BAILIAN_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1'}|${model}|image-1024x1024-n1`);
         const generated = await generatePetImage(prompt, source, model, seed, negativePrompt);
         const { bytes, contentType } = await downloadMedia(generated, 5 * 1024 * 1024);
         const quality = await inspectImage(bytes, contentType, true);
@@ -87,7 +90,9 @@ export const adapter = {
     if (body.sourceImageUrl && body.sourceImageUrl !== body.imageUrl) throw new Error('Cannot replace selected animation image');
     const imageUrl = /^wan2\.7-i2v(?:-|$)/.test(models.video) && body.imageUrl.startsWith('/api/assets/')
       ? await imageData(job.user_id, body.imageUrl) : await reference(job);
-    const payload = await wan('/services/aigc/video-generation/video-synthesis', buildPetVideoRequest(buildIdlePrompt(body.prompt || '', body.style || ''), imageUrl, models.video));
+    const videoRequest = buildPetVideoRequest(buildIdlePrompt(body.prompt || '', body.style || ''), imageUrl, models.video);
+    await reserveCall(job, 'video', `${resolveDashscopeVideoBaseUrl(process.env)}|${models.video}|${JSON.stringify(videoRequest.parameters)}`);
+    const payload = await wan('/services/aigc/video-generation/video-synthesis', videoRequest);
     return { upstreamId: payload.output?.task_id };
   },
   async poll(job: Job) {

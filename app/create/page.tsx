@@ -114,6 +114,7 @@ export default function HomePage() {
   const router = useRouter();
   const [stage, setStage] = useState<Stage>("UPLOAD");
   const animationRef = useRef<AbortController | null>(null);
+  const extractJobRef = useRef<string | null>(null);
   useEffect(() => () => animationRef.current?.abort(), []);
   const [selectedName, setSelectedName] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
@@ -195,6 +196,7 @@ export default function HomePage() {
   };
 
   const extractFeatures = async (file: File) => {
+    extractJobRef.current = null;
     try {
       const payload = await compressToBase64(file);
       await new Promise((r) => setTimeout(r, 1200));
@@ -211,6 +213,7 @@ export default function HomePage() {
         throw new Error(data?.error ?? `提取失败 (${response.status})`);
       }
       setAiTags(data.tags || []);
+      extractJobRef.current = data.taskId;
 
       const rawText: string = typeof data.petFeatures === "string" ? data.petFeatures : "";
       const suggested = inferProfileFromText(rawText);
@@ -258,6 +261,7 @@ export default function HomePage() {
         body: JSON.stringify({
           imageBase64: original.imageBase64,
           mimeType: original.mimeType,
+          parentJobId: extractJobRef.current,
           petName,
           petVibe: personality,
           aiTags,

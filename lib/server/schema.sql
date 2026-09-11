@@ -37,3 +37,25 @@ CREATE TABLE IF NOT EXISTS image_feedback (
   job_id uuid NOT NULL REFERENCES generation_jobs(id), data jsonb NOT NULL,
   updated_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(user_id,asset_id)
 );
+CREATE TABLE IF NOT EXISTS creations (
+  id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES users(id), quota_day date NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS creations_daily ON creations(user_id,quota_day);
+ALTER TABLE generation_jobs ADD COLUMN IF NOT EXISTS creation_id uuid REFERENCES creations(id);
+CREATE UNIQUE INDEX IF NOT EXISTS creation_stage ON generation_jobs(creation_id,kind) WHERE creation_id IS NOT NULL;
+CREATE TABLE IF NOT EXISTS ai_reservations (
+  job_id uuid NOT NULL REFERENCES generation_jobs(id), slot text NOT NULL,
+  user_id uuid NOT NULL REFERENCES users(id), profile text NOT NULL,
+  reserved_micros bigint NOT NULL CHECK(reserved_micros>0),
+  settled_micros bigint CHECK(settled_micros>=0), period date NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(job_id,slot)
+);
+CREATE INDEX IF NOT EXISTS ai_reservations_period ON ai_reservations(period);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at timestamptz;
+CREATE TABLE IF NOT EXISTS account_tokens (
+  token_hash text PRIMARY KEY, user_id uuid NOT NULL REFERENCES users(id),
+  purpose text NOT NULL CHECK(purpose IN ('verify','reset')),
+  expires_at timestamptz NOT NULL, created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(user_id,purpose)
+);

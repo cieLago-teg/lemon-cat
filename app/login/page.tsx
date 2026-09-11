@@ -28,6 +28,9 @@ export default function LoginPage() {
   const [error, setError] = useState<{ key: MessageKey; status?: number; serverMessage?: string } | null>(null);
   const [localDeveloper, setLocalDeveloper] = useState(false);
   const [developerStarting, setDeveloperStarting] = useState(false);
+  const [publicSignup, setPublicSignup] = useState<boolean | null>(null);
+  const [mailSent, setMailSent] = useState(false);
+  const [recovery, setRecovery] = useState(false);
 
   const enterLocalDeveloper = async () => {
     setDeveloperStarting(true);
@@ -45,6 +48,16 @@ export default function LoginPage() {
 
   useEffect(() => {
     setLocalDeveloper(["localhost", "127.0.0.1"].includes(window.location.hostname));
+    const controller = new AbortController();
+    fetch('/api/auth/options', { signal: controller.signal }).then(async (response) => {
+      if (!response.ok) throw new Error(`Auth options HTTP ${response.status}`);
+      setPublicSignup((await response.json()).publicRegistration === true);
+    }).catch((err) => {
+      if (controller.signal.aborted) return;
+      console.error('[login] options failed', err);
+      setError({ key: 'authOptionsFailed' });
+    });
+    return () => controller.abort();
   }, []);
 
   const safeNext = () => {
@@ -58,25 +71,27 @@ export default function LoginPage() {
     e.preventDefault();
     if (submitting) return;
     setError(null);
+    setMailSent(false);
 
     const trimmedEmail = email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       setError({ key: 'invalidEmail' });
       return;
     }
-    if (password.length < 8 || password.length > 128) {
+    if (!recovery && !(mode === 'register' && publicSignup) && (password.length < 8 || password.length > 128)) {
       setError({ key: 'passwordRange' });
       return;
     }
 
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/auth/${mode}`, {
+      const res = await fetch(`/api/auth/${recovery ? 'recovery' : mode}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail, password, ...(mode === "register" ? { inviteCode: inviteCode.trim() } : {}) })
+        body: JSON.stringify({ email: trimmedEmail, locale, ...(!recovery && !(mode === 'register' && publicSignup) ? { password } : {}), ...(mode === "register" && !publicSignup ? { inviteCode: inviteCode.trim() } : {}) })
       });
-      const data = (await res.json()) as { user?: unknown; error?: string };
+      const data = (await res.json()) as { user?: unknown; error?: string; sent?: boolean };
+      if (res.status === 202 && data.sent) { setMailSent(true); setSubmitting(false); return; }
       if (!res.ok || !data.user) {
         setError({ key: 'authFailed', status: res.status, serverMessage: data.error });
         setSubmitting(false);
@@ -99,13 +114,13 @@ export default function LoginPage() {
         <div className="bg-paper-glass-strong rounded-[2rem] border border-white/60 px-8 py-10 shadow-[0_25px_60px_-30px_rgba(92,46,16,0.5)] ring-1 ring-black/5 backdrop-blur-xl sm:px-10">
           <div className="text-center">
             <div className="text-4xl" aria-hidden>
-              🍋
+              🐾
             </div>
             <h1 className="mt-3 font-handwriting text-4xl leading-none text-[#5c2e10] sm:text-5xl">
-              {t(isLogin ? 'welcome' : 'join')}
+              {t(isLogin ? 'welcome' : 'publicJoin')}
             </h1>
             <p className="mt-3 text-sm text-[#5c2e10]/70">
-              {t(isLogin ? 'welcomeHint' : 'joinHint')}
+              {t(isLogin ? 'welcomeHint' : publicSignup ? 'publicJoinHint' : 'joinHint')}
             </p>
           </div>
 
@@ -123,7 +138,7 @@ export default function LoginPage() {
               />
             </label>
 
-            <label className="block">
+            {!recovery && !(mode === 'register' && publicSignup) && <label className="block">
               <span className="mb-1.5 block text-xs font-bold text-[#5c2e10]/80">
                 {t('password')} <span className="font-normal text-[#5c2e10]/50">({t('passwordMin')})</span>
               </span>
@@ -148,9 +163,9 @@ export default function LoginPage() {
                   <span>{t('strength')}: {t(strength.label)} · {t(strength.hint)}</span>
                 </div>
               )}
-            </label>
+            </label>}
 
-            {!isLogin && (
+            {!isLogin && publicSignup === false && (
               <label className="block">
                 <span className="mb-1.5 block text-xs font-bold text-[#5c2e10]/80">{t('invite')}</span>
                 <input type="password" autoComplete="off" required value={inviteCode}
@@ -164,13 +179,14 @@ export default function LoginPage() {
                 {error.status ? authError(locale, error.status, error.serverMessage) : t(error.key)}
               </p>
             ) : null}
+            {mailSent && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">{t('mailSent')}</p>}
 
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || publicSignup === null}
               className="w-full rounded-full bg-[#f8a8a8]/85 px-6 py-3 font-handwriting text-xl text-white shadow-[0_10px_25px_-12px_rgba(163,52,52,0.6)] transition hover:bg-[#f8a8a8] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {t(submitting ? 'waiting' : isLogin ? 'login' : 'createAccount')}
+              {t(submitting ? 'waiting' : recovery ? 'sendReset' : isLogin ? 'login' : publicSignup ? 'sendLink' : 'createAccount')}
             </button>
           </form>
 
@@ -180,6 +196,7 @@ export default function LoginPage() {
               type="button"
               onClick={() => {
                 setMode(isLogin ? "register" : "login");
+                setRecovery(false); setMailSent(false);
                 setError(null);
               }}
               className="ml-1 font-bold text-[#5c2e10] underline-offset-2 hover:underline"
@@ -187,6 +204,7 @@ export default function LoginPage() {
               {t(isLogin ? 'register' : 'goLogin')}
             </button>
           </p>
+          {publicSignup && <button type="button" className="mt-4 w-full text-center text-xs underline" onClick={() => { setRecovery(!recovery); setMode('login'); setMailSent(false); setError(null); }}>{t(recovery ? 'goLogin' : 'forgotPassword')}</button>}
           {localDeveloper ? (
             <div className="mt-6 border-t border-[#5c2e10]/10 pt-5 text-center">
               <button type="button" onClick={() => void enterLocalDeveloper()} disabled={developerStarting} className="text-xs font-bold text-amber-800 underline underline-offset-4 disabled:opacity-60">

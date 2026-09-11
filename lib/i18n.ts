@@ -1,3 +1,4 @@
+export const BRAND = { name: 'Pawnear', zh: '爪伴', title: 'Pawnear · 爪伴' } as const;
 export type Locale = 'zh' | 'en';
 export const LOCALE_COOKIE = 'lemon_locale';
 
@@ -19,13 +20,13 @@ export function resolveLocale(saved: string | undefined, acceptLanguage = ''): L
 }
 
 export const messages = {
-  title: ['数字宠物档案馆', 'Your Digital Pet Companion'],
+  title: [BRAND.title, `${BRAND.name} · Your pet, nearby`],
   description: ['让你的宠物成为陪伴你的桌面小伙伴', 'Bring a little version of your pet to your desktop.'],
   create: ['开始创建', 'Create a pet'], pets: ['我的宠物', 'My pets'], tasks: ['生成任务', 'Tasks'],
   developer: ['开发后台', 'Developer'], language: ['界面语言', 'Interface language'],
   login: ['登录', 'Sign in'], logout: ['退出', 'Sign out'],
   logoutFailed: ['退出失败，请重试', 'Could not sign out. Please try again.'],
-  welcome: ['欢迎回来', 'Welcome back'], join: ['加入柠檬树苗', 'Join Lemon Cat'],
+  welcome: ['欢迎回来', 'Welcome back'], join: ['加入 Pawnear · 爪伴', 'Join Pawnear'],
   welcomeHint: ['你的宠物们还在等你哦', 'Your pets are waiting for you.'],
   joinHint: ['给毛孩子建一份数字档案', 'Make a digital home for your pet.'],
   email: ['邮箱', 'Email'], password: ['密码', 'Password'], passwordMin: ['至少 8 位', 'At least 8 characters'],
@@ -86,6 +87,43 @@ export const messages = {
   photoDark: ['画面整体较暗，请确认毛色与眼睛细节可见（黑色宠物可能误触发）', 'The photo looks dark. Check coat and eye detail; dark-coated pets may trigger this warning unnecessarily.'],
   photoBright: ['画面偏亮或主体较小，请确认白色毛发细节没有丢失', 'The photo looks bright or the pet looks small. Check that white fur details are visible.'],
   photoBlur: ['画面细节较少，可能模糊或主体过小，请肉眼确认', 'Few details were detected. Check for blur or a very small subject.'],
+  verifyFirst: ['请先验证邮箱', 'Please verify your email first.'],
+  publicJoin: ['创建 Pawnear 账户', 'Create your Pawnear account'],
+  publicJoinHint: ['先验证邮箱，再设置密码。每天最多 3 次创建，受全站预算限制。', 'Verify your email, then set a password. Up to 3 creations per day, subject to the shared budget.'],
+  mailSent: ['如果该邮箱可用于此操作，我们已发送链接。请检查收件箱和垃圾邮件；30 分钟内有效。', 'If this email is eligible, we have sent a link. Check your inbox and spam folder; it expires in 30 minutes.'],
+  sendLink: ['发送验证链接', 'Send verification link'],
+  forgotPassword: ['忘记密码 / 重新发送验证', 'Forgot password / resend verification'],
+  sendReset: ['发送密码重置链接', 'Send password reset link'],
+  confirmAccount: ['验证邮箱 / 设置密码', 'Verify email / set password'],
+  confirmAccountHint: ['请通过邮件里的链接打开此页，设置仅属于你的密码。', 'Open this page from your email link and choose your own password.'],
+  confirmPassword: ['保存新密码', 'Save new password'],
+  passwordSaved: ['密码已设置，旧登录会话已失效。请重新登录。', 'Password saved. Previous sessions have been signed out. Please sign in again.'],
+  invalidLink: ['验证链接无效或已过期，请重新申请。', 'This link is invalid or expired. Request a new one.'],
+  authOptionsFailed: ['无法读取注册状态，请刷新重试。', 'Could not load registration options. Refresh and try again.'],
+  tasksHint: ['刷新、关页不会取消已提交的任务。显示“待核对”时请勿重新生成，向维护者提供任务编号。', 'Submitted tasks continue if you close or refresh the page. If review is needed, do not generate again; give the task ID to support.'],
+  recoveryName: ['恢复生图结果时的宠物名字', 'Name for the recovered pet'],
+  petNameRequired: ['请先填写宠物名字', 'Enter a pet name first.'],
+  noTasks: ['暂时没有任务。', 'No tasks yet.'],
+  extracting: ['照片识别', 'Photo recognition'], generating: ['形象生成', 'Image generation'], animating: ['动态生成', 'Animation'],
+  saving: ['正在保存…', 'Saving…'], saveFailed: ['保存失败，请重试。', 'Could not save. Please try again.'],
+  recoverPet: ['恢复并保存宠物档案', 'Recover and save pet'],
+  queued: ['已排队，等待处理', 'Queued for processing'],
+  submitting: ['正在提交，请勿重复生成', 'Submitting; do not generate again'],
+  polling: ['模型生成处理中', 'The model is processing your request'],
+  materializing: ['正在保存和处理成品', 'Saving and processing the result'],
+  success: ['生成完成', 'Complete'], failed: ['生成失败，详情请联系维护者核对', 'Generation failed. Contact support with the task ID.'],
+  needs_review: ['提交结果待核对，请勿重复生成', 'Submission needs review. Do not generate again.'],
+  feedbackTitle: ['这张画得怎么样？（可选反馈）', 'How does this look? (Optional feedback)'],
+  feedbackHint: ['评分不会拦截生成，也不代表授权用你的照片训练模型。1 分不满意，5 分很满意。', 'Feedback does not block generation or grant permission to train on your photos. Rate from 1 (poor) to 5 (great).'],
+  feedbackSaved: ['反馈已保存，谢谢你帮它变得更好。', 'Feedback saved. Thanks for helping us improve.'],
+  feedbackFailed: ['反馈未保存，请稍后重试。', 'Feedback was not saved. Please try again.'],
+  feedbackReady: ['这张达到我愿意使用的质量', 'I would use this image as my pet'],
+  saveFeedback: ['保存反馈', 'Save feedback'], chooseRating: ['请选择', 'Choose'],
+  rateIdentity: ['像不像它', 'Resemblance'], rateStyle: ['画风满意度', 'Style'],
+  rateAnatomy: ['身体完整度', 'Anatomy'], rateDesktop: ['桌宠形象满意度', 'Desktop appearance'],
+  failIdentity: ['不像我的宠物', 'Does not resemble my pet'], failStyle: ['画风不对', 'Wrong style'],
+  failAnatomy: ['多头 / 多只 / 肢体异常', 'Extra heads, pets or limbs'], failMarkings: ['毛色花纹不对', 'Wrong colors or markings'],
+  failCrop: ['耳爪尾被裁切', 'Ears, paws or tail cropped'], failBackground: ['背景或白边问题', 'Background or white edges'], failDetail: ['模糊 / 细节不好', 'Blurred or poor detail'],
 } as const;
 
 export type MessageKey = keyof typeof messages;
@@ -95,7 +133,7 @@ export function translate(locale: Locale, key: MessageKey): string {
 
 // 旧接口尚未返回稳定错误码；只翻译已知错误，未知错误保留状态码并使用友好提示。
 export function authError(locale: Locale, status: number, serverMessage?: string): string {
-  const known: MessageKey[] = ['credentialsFailed', 'inviteFailed', 'exists', 'rateLimited', 'passwordRange'];
+  const known: MessageKey[] = ['credentialsFailed', 'inviteFailed', 'exists', 'rateLimited', 'passwordRange', 'verifyFirst'];
   const key = known.find((candidate) => messages[candidate][0] === serverMessage);
   return key ? translate(locale, key) : `${translate(locale, 'authFailed')} (${status})`;
 }

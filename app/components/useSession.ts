@@ -57,7 +57,7 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
       if (taskResponse.status === 401) redirectToLogin();
       if (!taskResponse.ok) throw new Error(`任务查询失败 (${taskResponse.status})；任务 ${taskId} 已保存，请勿重复提交`);
       const { task } = await taskResponse.json();
-      if (task.state === 'success') return Response.json(task.result);
+      if (task.state === 'success') return Response.json({ ...task.result, taskId });
       if (['failed', 'needs_review'].includes(task.state)) {
         if (target === '/api/generate' && task.result?.results?.length) return Response.json({ ...task.result, partial: true, taskId, warning: `部分形象已保存。任务 ${taskId} 的剩余生成需核对，请勿整批重复提交；内测点数暂时保留。` });
         return Response.json({ error: task.error || task.message }, { status: 502 });
